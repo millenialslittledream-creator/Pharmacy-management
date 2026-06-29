@@ -5,15 +5,13 @@ and exposes a single authenticated endpoint the main app calls to send messages.
 It is deployed separately from the Next.js app because it needs an always-on
 process — Vercel functions cannot hold a persistent WhatsApp connection.
 
-## Deploy to Oracle Cloud "Always Free" (genuinely $0 forever)
+Railway dropped its free tier in 2023 (now ~$5/mo minimum), so this uses a free
+always-on VM instead. **Try Oracle Cloud first** (more generous specs); if VM
+creation fails with an "out of capacity" error (a known, common Oracle issue),
+**fall back to GCP** (smaller VM, but reliably available). Steps 2–4 below are
+identical either way — only VM creation and port-opening differ.
 
-Railway dropped its free tier in 2023 (now ~$5/mo minimum), so this uses
-Oracle Cloud's Always Free tier instead — a small VM that never expires or
-gets billed, as long as you stay within the always-free limits (this tiny
-service uses a fraction of them). It needs more one-time manual setup than a
-git-connected platform, but zero ongoing cost.
-
-### 1. Create the VM
+## 1a. Create the VM — Oracle Cloud (try this first)
 
 1. Sign up at https://www.oracle.com/cloud/free/ (a card is required for
    identity verification, but Always Free resources are never charged).
@@ -21,24 +19,54 @@ git-connected platform, but zero ongoing cost.
 3. Image: **Ubuntu 22.04**. Shape: click "Change shape" → Ampere → **VM.Standard.A1.Flex**,
    set 1 OCPU / 6 GB memory (well inside the always-free 4 OCPU/24GB allowance).
 4. Add your SSH key (or let Oracle generate one and download it) so you can log in.
-5. Create. Note the instance's **public IP address**.
+5. Click Create.
 
-### 2. Open the port
+If this fails with "Out of host capacity" — that's Oracle's free Ampere
+shape being oversubscribed in your region. You can keep retrying (people often
+succeed within a day), or just switch to 1b below instead of waiting.
 
-Two firewalls block traffic by default — both need an opening for port 3001:
+6. Once created, note the instance's **public IP address** and skip to step 2.
 
-- **OCI Security List**: Networking → Virtual Cloud Networks → your VCN →
+## 1b. Create the VM — GCP (fallback if Oracle is out of capacity)
+
+1. Sign up at https://cloud.google.com/free (a card is required for
+   verification; you also get a $300/90-day trial credit on top of the
+   permanent always-free resources).
+2. Console → Compute Engine → VM Instances → Create Instance.
+3. Name it, and set **Region to `us-central1` (Iowa)** — the always-free
+   e2-micro instance is only free in `us-west1`, `us-central1`, or `us-east1`.
+4. Machine type: **e2-micro** (this is the free one — don't change it).
+5. Boot disk: Ubuntu 22.04, up to 30GB standard persistent disk (within the
+   free allowance).
+6. Under Firewall, check "Allow HTTP traffic" (we'll open the specific port
+   separately below).
+7. Create. Note the instance's **External IP**.
+
+## 2. Open the port
+
+Port 3001 needs to be reachable from the internet. Both platforms block it by
+default.
+
+**Oracle:**
+- OCI Security List: Networking → Virtual Cloud Networks → your VCN →
   Security Lists → Default Security List → Add Ingress Rule: source `0.0.0.0/0`,
   destination port `3001`, TCP.
-- **VM firewall** — SSH in (`ssh ubuntu@<public-ip>`) and run:
+- VM firewall — SSH in (`ssh ubuntu@<public-ip>`) and run:
   ```bash
   sudo iptables -I INPUT -p tcp --dport 3001 -j ACCEPT
   sudo netfilter-persistent save
   ```
 
-### 3. Install Node and the service
+**GCP:**
+- Console → VPC Network → Firewall → Create Firewall Rule: targets "All
+  instances in the network", source range `0.0.0.0/0`, protocol/port
+  `tcp:3001`.
+- SSH in via the Console's built-in "SSH" button (no key setup needed) or
+  `gcloud compute ssh`.
 
-SSH into the VM and run:
+## 3. Install Node and the service
+
+SSH into whichever VM you created and run:
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -55,14 +83,14 @@ pm2 save
 pm2 startup   # run the command it prints, so the service survives a VM reboot
 ```
 
-### 4. Scan the QR code
+## 4. Scan the QR code
 
 Open `http://<public-ip>:3001/qr` in a browser. On the pharmacy's WhatsApp
 phone: Settings → Linked Devices → Link a Device, then scan it. Once linked,
 `http://<public-ip>:3001/status` reports `{"status":"connected"}` and the
-session persists in the `auth_info` folder across VM reboots (since pm2
-restarts the same process on the same disk — there's no ephemeral filesystem
-here like on serverless platforms).
+session persists in the `auth_info` folder across VM reboots (pm2 restarts the
+same process on the same disk — no ephemeral filesystem like on serverless
+platforms).
 
 `WHATSAPP_SERVICE_URL` (set in Vercel) is `http://<public-ip>:3001`.
 `WHATSAPP_SERVICE_SECRET` (set in Vercel) must exactly match the `API_SECRET`
