@@ -17,7 +17,7 @@ export default async function SignupPage({
       <Card className="bezel-core shadow-ambient-lg ring-0">
         <CardHeader>
           <span className="mb-2 inline-flex w-fit items-center rounded-full bg-accent px-3 py-1 text-[10px] font-medium tracking-[0.2em] text-accent-foreground uppercase">
-            Pharrmasy
+            Pharmacy
           </span>
           <CardTitle className="text-xl">Create your pharmacy</CardTitle>
           <CardDescription>You will be set up as the CEO/owner of this organization</CardDescription>

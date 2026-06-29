@@ -1,21 +1,13 @@
 import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthContext } from "@/lib/actions/require-org";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { Button } from "@/components/ui/button";
 import { logout } from "@/lib/actions/auth";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { user, profile } = await getAuthContext();
   if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, role, organizations(name)")
-    .eq("id", user.id)
-    .single();
-
   if (!profile) redirect("/onboarding");
 
   const orgName = (profile.organizations as unknown as { name: string } | null)?.name ?? "Pharmacy";
