@@ -394,6 +394,8 @@ export type Database = {
           invoice_prefix: string
           name: string
           phone: string | null
+          whatsapp_alert_number: string | null
+          whatsapp_enabled: boolean
         }
         Insert: {
           address?: string | null
@@ -404,6 +406,8 @@ export type Database = {
           invoice_prefix?: string
           name: string
           phone?: string | null
+          whatsapp_alert_number?: string | null
+          whatsapp_enabled?: boolean
         }
         Update: {
           address?: string | null
@@ -414,6 +418,8 @@ export type Database = {
           invoice_prefix?: string
           name?: string
           phone?: string | null
+          whatsapp_alert_number?: string | null
+          whatsapp_enabled?: boolean
         }
         Relationships: []
       }

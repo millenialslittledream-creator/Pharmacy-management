@@ -7,7 +7,9 @@ export async function getOrgSettings() {
   const { supabase, orgId } = await requireOrgId();
   const { data, error } = await supabase
     .from("organizations")
-    .select("name, gstin, address, phone, invoice_prefix, default_reorder_level")
+    .select(
+      "name, gstin, address, phone, invoice_prefix, default_reorder_level, whatsapp_enabled, whatsapp_alert_number",
+    )
     .eq("id", orgId)
     .single();
   if (error) throw error;
@@ -21,6 +23,8 @@ export async function updateOrgSettings(input: {
   phone?: string;
   invoicePrefix: string;
   defaultReorderLevel: number;
+  whatsappEnabled: boolean;
+  whatsappAlertNumber?: string;
 }) {
   const { supabase, orgId } = await requireOrgId();
   const { error } = await supabase
@@ -32,6 +36,8 @@ export async function updateOrgSettings(input: {
       phone: input.phone || null,
       invoice_prefix: input.invoicePrefix || "INV",
       default_reorder_level: input.defaultReorderLevel,
+      whatsapp_enabled: input.whatsappEnabled,
+      whatsapp_alert_number: input.whatsappAlertNumber || null,
     })
     .eq("id", orgId);
   if (error) throw error;

@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
+import { after } from "next/server";
 import { requireOrgId } from "@/lib/actions/require-org";
 import { sanitizeSearchTerm } from "@/lib/search";
+import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import type { Database } from "@/lib/supabase/types";
 
 type PaymentMode = Database["public"]["Enums"]["payment_mode"];
@@ -124,7 +126,42 @@ export async function submitInvoice(input: {
   revalidatePath("/billing");
   revalidatePath("/inventory");
   updateTag(`dashboard-${orgId}`);
+
+  if (input.customerId) {
+    after(() => notifyInvoiceByWhatsApp(orgId, input.customerId!, data));
+  }
+
   return data;
+}
+
+async function notifyInvoiceByWhatsApp(orgId: string, customerId: string, invoiceId: string) {
+  const { supabase } = await requireOrgId();
+
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("name, whatsapp_enabled")
+    .eq("id", orgId)
+    .single();
+  if (!org?.whatsapp_enabled) return;
+
+  const { data: customer } = await supabase
+    .from("customers")
+    .select("phone")
+    .eq("id", customerId)
+    .single();
+  if (!customer?.phone) return;
+
+  const { data: invoice } = await supabase
+    .from("invoices")
+    .select("invoice_no, grand_total")
+    .eq("id", invoiceId)
+    .single();
+  if (!invoice) return;
+
+  await sendWhatsAppMessage(
+    customer.phone,
+    `${org.name}: Your bill ${invoice.invoice_no} for ₹${invoice.grand_total.toFixed(2)} is ready. Thank you for your purchase!`,
+  );
 }
 
 export type InvoiceFilters = {

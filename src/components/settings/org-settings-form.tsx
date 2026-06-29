@@ -15,6 +15,8 @@ type OrgSettings = {
   phone: string | null;
   invoice_prefix: string;
   default_reorder_level: number;
+  whatsapp_enabled: boolean;
+  whatsapp_alert_number: string | null;
 };
 
 export function OrgSettingsForm({ initial }: { initial: OrgSettings }) {
@@ -24,6 +26,8 @@ export function OrgSettingsForm({ initial }: { initial: OrgSettings }) {
   const [phone, setPhone] = useState(initial.phone ?? "");
   const [invoicePrefix, setInvoicePrefix] = useState(initial.invoice_prefix);
   const [defaultReorderLevel, setDefaultReorderLevel] = useState(String(initial.default_reorder_level));
+  const [whatsappEnabled, setWhatsappEnabled] = useState(initial.whatsapp_enabled);
+  const [whatsappAlertNumber, setWhatsappAlertNumber] = useState(initial.whatsapp_alert_number ?? "");
   const [isPending, startTransition] = useTransition();
 
   function handleSave() {
@@ -36,6 +40,8 @@ export function OrgSettingsForm({ initial }: { initial: OrgSettings }) {
           phone,
           invoicePrefix,
           defaultReorderLevel: Number(defaultReorderLevel) || 0,
+          whatsappEnabled,
+          whatsappAlertNumber,
         });
         toast.success("Settings saved");
       } catch (err) {
@@ -80,6 +86,29 @@ export function OrgSettingsForm({ initial }: { initial: OrgSettings }) {
             />
           </div>
         </div>
+
+        <div className="space-y-3 border-t pt-4">
+          <div className="flex items-center gap-2">
+            <input
+              id="whatsapp-enabled"
+              type="checkbox"
+              className="h-4 w-4 rounded border-input"
+              checked={whatsappEnabled}
+              onChange={(e) => setWhatsappEnabled(e.target.checked)}
+            />
+            <Label htmlFor="whatsapp-enabled">Send WhatsApp invoice receipts &amp; low-stock alerts</Label>
+          </div>
+          <div className="space-y-1.5 sm:max-w-xs">
+            <Label>Alert number (for low-stock alerts)</Label>
+            <Input
+              value={whatsappAlertNumber}
+              onChange={(e) => setWhatsappAlertNumber(e.target.value)}
+              placeholder="91XXXXXXXXXX"
+              disabled={!whatsappEnabled}
+            />
+          </div>
+        </div>
+
         <Button onClick={handleSave} disabled={isPending}>
           {isPending ? "Saving..." : "Save settings"}
         </Button>
