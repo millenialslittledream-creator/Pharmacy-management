@@ -33,6 +33,34 @@ export async function getRevenueByHour(from: string, to: string) {
   return cached();
 }
 
+export async function getProfitByDay(from: string, to: string) {
+  const { supabase, orgId } = await requireOrgId();
+  const cached = unstable_cache(
+    async () => {
+      const { data, error } = await supabase.rpc("profit_by_day", { p_from: from, p_to: to });
+      if (error) throw error;
+      return data;
+    },
+    ["profit-by-day", orgId, from, to],
+    { revalidate: REVALIDATE_SECONDS, tags: [`dashboard-${orgId}`] },
+  );
+  return cached();
+}
+
+export async function getProfitByHour(from: string, to: string) {
+  const { supabase, orgId } = await requireOrgId();
+  const cached = unstable_cache(
+    async () => {
+      const { data, error } = await supabase.rpc("profit_by_hour", { p_from: from, p_to: to });
+      if (error) throw error;
+      return data;
+    },
+    ["profit-by-hour", orgId, from, to],
+    { revalidate: REVALIDATE_SECONDS, tags: [`dashboard-${orgId}`] },
+  );
+  return cached();
+}
+
 export async function getTopSellingMedicines(from: string, to: string, limit = 10) {
   const { supabase, orgId } = await requireOrgId();
   const cached = unstable_cache(

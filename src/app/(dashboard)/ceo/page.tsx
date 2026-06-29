@@ -1,12 +1,18 @@
 import { CeoDashboard } from "@/components/dashboard/ceo-dashboard";
-import { getDashboardAlerts, getRevenueByDay, getTopSellingMedicines } from "@/lib/actions/dashboard";
+import {
+  getDashboardAlerts,
+  getProfitByDay,
+  getRevenueByDay,
+  getTopSellingMedicines,
+} from "@/lib/actions/dashboard";
 import { presetToRange } from "@/lib/date-ranges";
 
 export default async function CeoDashboardPage() {
   const { from, to } = presetToRange("month");
-  const [alerts, revenue, topMedicines] = await Promise.all([
+  const [alerts, revenue, profit, topMedicines] = await Promise.all([
     getDashboardAlerts(),
     getRevenueByDay(from, to),
+    getProfitByDay(from, to),
     getTopSellingMedicines(from, to, 10),
   ]);
 
@@ -14,6 +20,7 @@ export default async function CeoDashboardPage() {
     <CeoDashboard
       alerts={alerts ?? null}
       initialRevenue={revenue.map((r) => ({ bucket: r.day, total: r.total, order_count: r.order_count }))}
+      initialProfit={profit.reduce((s, p) => s + p.profit, 0)}
       initialTopMedicines={topMedicines}
     />
   );

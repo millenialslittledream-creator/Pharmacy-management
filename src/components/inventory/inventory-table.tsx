@@ -52,12 +52,18 @@ export function InventoryTable({ rows }: { rows: StockRow[] }) {
             <TableHead className="text-right">Stock</TableHead>
             <TableHead>Nearest expiry</TableHead>
             <TableHead className="text-right">Reorder level</TableHead>
+            <TableHead className="text-right">Cost</TableHead>
+            <TableHead className="text-right">Retail</TableHead>
+            <TableHead className="text-right">Margin</TableHead>
             <TableHead></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {pageRows.map((row) => {
             const lowStock = row.reorder_level != null && (row.total_qty ?? 0) < row.reorder_level;
+            const cost = row.avg_purchase_rate;
+            const retail = row.default_sale_rate;
+            const margin = cost != null && retail != null && retail > 0 ? ((retail - cost) / retail) * 100 : null;
             return (
               <TableRow key={row.medicine_id}>
                 <TableCell className="font-medium">{row.name}</TableCell>
@@ -76,6 +82,13 @@ export function InventoryTable({ rows }: { rows: StockRow[] }) {
                   {row.nearest_expiry ?? "—"} {expiryBadge(row.nearest_expiry)}
                 </TableCell>
                 <TableCell className="text-right">{row.reorder_level ?? 0}</TableCell>
+                <TableCell className="text-right text-muted-foreground">
+                  {cost != null ? cost.toFixed(2) : "—"}
+                </TableCell>
+                <TableCell className="text-right text-muted-foreground">
+                  {retail != null ? retail.toFixed(2) : "—"}
+                </TableCell>
+                <TableCell className="text-right">{margin != null ? `${margin.toFixed(0)}%` : "—"}</TableCell>
                 <TableCell>
                   <AddBatchDialog
                     preselected={{

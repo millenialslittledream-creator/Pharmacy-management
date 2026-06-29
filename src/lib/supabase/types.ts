@@ -536,8 +536,10 @@ export type Database = {
     Views: {
       medicine_stock_summary: {
         Row: {
+          avg_purchase_rate: number | null
           batch_count: number | null
           category: string | null
+          default_sale_rate: number | null
           generic_name: string | null
           manufacturer: string | null
           medicine_id: string | null
@@ -604,6 +606,14 @@ export type Database = {
           org_name: string
           role: Database["public"]["Enums"]["user_role"]
         }[]
+      }
+      profit_by_day: {
+        Args: { p_from: string; p_to: string }
+        Returns: { day: string; profit: number }[]
+      }
+      profit_by_hour: {
+        Args: { p_from: string; p_to: string }
+        Returns: { hour: string; profit: number }[]
       }
       return_invoice: { Args: { p_invoice_id: string }; Returns: undefined }
       revenue_by_day: {

@@ -28,7 +28,13 @@ import {
   formatHourLabel,
   type DateRangePreset,
 } from "@/lib/date-ranges";
-import { getRevenueByDay, getRevenueByHour, getTopSellingMedicines } from "@/lib/actions/dashboard";
+import {
+  getProfitByDay,
+  getProfitByHour,
+  getRevenueByDay,
+  getRevenueByHour,
+  getTopSellingMedicines,
+} from "@/lib/actions/dashboard";
 
 type Alerts = { low_stock_count: number; expiring_soon_count: number; outstanding_total: number };
 type RevenueRow = { bucket: string; total: number; order_count: number };
@@ -37,16 +43,19 @@ type TopMedicine = { medicine_id: string; name: string; qty_sold: number; revenu
 export function CeoDashboard({
   alerts,
   initialRevenue,
+  initialProfit,
   initialTopMedicines,
 }: {
   alerts: Alerts | null;
   initialRevenue: RevenueRow[];
+  initialProfit: number;
   initialTopMedicines: TopMedicine[];
 }) {
   const [preset, setPreset] = useState<DateRangePreset>("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [revenue, setRevenue] = useState<RevenueRow[]>(initialRevenue);
+  const [profit, setProfit] = useState(initialProfit);
   const [granularity, setGranularity] = useState<"day" | "hour">("day");
   const [topMedicines, setTopMedicines] = useState<TopMedicine[]>(initialTopMedicines);
   const [isPending, startTransition] = useTransition();
@@ -60,12 +69,14 @@ export function CeoDashboard({
     const { from, to } = presetToRange(preset, customFrom, customTo);
     const singleDay = isSingleDayRange(preset, customFrom, customTo);
     startTransition(async () => {
-      const [rev, top] = await Promise.all([
+      const [rev, prof, top] = await Promise.all([
         singleDay ? getRevenueByHour(from, to) : getRevenueByDay(from, to),
+        singleDay ? getProfitByHour(from, to) : getProfitByDay(from, to),
         getTopSellingMedicines(from, to, 10),
       ]);
       setGranularity(singleDay ? "hour" : "day");
       setRevenue(rev.map((r) => ({ bucket: "hour" in r ? r.hour : r.day, total: r.total, order_count: r.order_count })));
+      setProfit(prof.reduce((s, p) => s + p.profit, 0));
       setTopMedicines(top);
     });
   }, [preset, customFrom, customTo]);
@@ -91,7 +102,7 @@ export function CeoDashboard({
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="pb-1">
             <CardTitle className="text-[11px] tracking-[0.1em] text-muted-foreground uppercase">
@@ -101,6 +112,14 @@ export function CeoDashboard({
           <CardContent className="text-3xl font-semibold tracking-tight">
             {revenue.reduce((s, r) => s + r.total, 0).toFixed(2)}
           </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-[11px] tracking-[0.1em] text-muted-foreground uppercase">
+              Profit (range)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-3xl font-semibold tracking-tight">{profit.toFixed(2)}</CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-1">
