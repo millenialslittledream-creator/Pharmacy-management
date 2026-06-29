@@ -30,3 +30,14 @@ export function presetToRange(preset: DateRangePreset, customFrom?: string, cust
 
   return { from: from.toISOString(), to: to.toISOString() };
 }
+
+/** Day-level buckets collapse to a single bar for one-day ranges, so those need hourly buckets instead. */
+export function isSingleDayRange(preset: DateRangePreset, customFrom?: string, customTo?: string) {
+  if (preset === "today") return true;
+  if (preset === "custom") return !!customFrom && (!customTo || customTo === customFrom);
+  return false;
+}
+
+export function formatHourLabel(iso: string) {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric" });
+}

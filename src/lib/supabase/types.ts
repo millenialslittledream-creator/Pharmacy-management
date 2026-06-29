@@ -610,6 +610,10 @@ export type Database = {
         Args: { p_from: string; p_to: string }
         Returns: { day: string; total: number; order_count: number }[]
       }
+      revenue_by_hour: {
+        Args: { p_from: string; p_to: string }
+        Returns: { hour: string; total: number; order_count: number }[]
+      }
       sales_summary: {
         Args: { p_from: string; p_to: string }
         Returns: {

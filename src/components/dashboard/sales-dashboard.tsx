@@ -13,8 +13,13 @@ import {
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
-import { presetToRange, type DateRangePreset } from "@/lib/date-ranges";
-import { getRevenueByDay, getSalesSummary } from "@/lib/actions/dashboard";
+import {
+  presetToRange,
+  isSingleDayRange,
+  formatHourLabel,
+  type DateRangePreset,
+} from "@/lib/date-ranges";
+import { getRevenueByDay, getRevenueByHour, getSalesSummary } from "@/lib/actions/dashboard";
 
 type Summary = {
   total_revenue: number;
@@ -26,20 +31,23 @@ type Summary = {
   upi_total: number;
   credit_total: number;
 };
-type RevenueRow = { day: string; total: number; order_count: number };
+type RevenueRow = { bucket: string; total: number; order_count: number };
 
 export function SalesDashboard({
   initialSummary,
   initialRevenue,
+  initialGranularity,
 }: {
   initialSummary: Summary | null;
   initialRevenue: RevenueRow[];
+  initialGranularity: "day" | "hour";
 }) {
   const [preset, setPreset] = useState<DateRangePreset>("today");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [summary, setSummary] = useState<Summary | null>(initialSummary);
   const [revenue, setRevenue] = useState<RevenueRow[]>(initialRevenue);
+  const [granularity, setGranularity] = useState<"day" | "hour">(initialGranularity);
   const [isPending, startTransition] = useTransition();
   const isFirstRender = useRef(true);
 
@@ -49,10 +57,15 @@ export function SalesDashboard({
       return;
     }
     const { from, to } = presetToRange(preset, customFrom, customTo);
+    const singleDay = isSingleDayRange(preset, customFrom, customTo);
     startTransition(async () => {
-      const [s, rev] = await Promise.all([getSalesSummary(from, to), getRevenueByDay(from, to)]);
+      const [s, rev] = await Promise.all([
+        getSalesSummary(from, to),
+        singleDay ? getRevenueByHour(from, to) : getRevenueByDay(from, to),
+      ]);
       setSummary(s ?? null);
-      setRevenue(rev);
+      setGranularity(singleDay ? "hour" : "day");
+      setRevenue(rev.map((r) => ({ bucket: "hour" in r ? r.hour : r.day, total: r.total, order_count: r.order_count })));
     });
   }, [preset, customFrom, customTo]);
 
@@ -119,10 +132,16 @@ export function SalesDashboard({
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={revenue}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="day" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" />
+                <XAxis
+                  dataKey="bucket"
+                  tick={{ fontSize: 12 }}
+                  stroke="var(--muted-foreground)"
+                  tickFormatter={granularity === "hour" ? formatHourLabel : undefined}
+                />
                 <YAxis tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" />
                 <Tooltip
                   cursor={{ fill: "var(--accent)" }}
+                  labelFormatter={granularity === "hour" ? (label) => formatHourLabel(String(label)) : undefined}
                   contentStyle={{
                     background: "var(--card)",
                     border: "1px solid var(--border)",

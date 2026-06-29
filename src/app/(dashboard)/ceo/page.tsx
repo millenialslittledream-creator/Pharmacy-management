@@ -13,7 +13,7 @@ export default async function CeoDashboardPage() {
   return (
     <CeoDashboard
       alerts={alerts ?? null}
-      initialRevenue={revenue}
+      initialRevenue={revenue.map((r) => ({ bucket: r.day, total: r.total, order_count: r.order_count }))}
       initialTopMedicines={topMedicines}
     />
   );

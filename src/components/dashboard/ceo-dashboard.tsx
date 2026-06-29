@@ -22,11 +22,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
-import { presetToRange, type DateRangePreset } from "@/lib/date-ranges";
-import { getRevenueByDay, getTopSellingMedicines } from "@/lib/actions/dashboard";
+import {
+  presetToRange,
+  isSingleDayRange,
+  formatHourLabel,
+  type DateRangePreset,
+} from "@/lib/date-ranges";
+import { getRevenueByDay, getRevenueByHour, getTopSellingMedicines } from "@/lib/actions/dashboard";
 
 type Alerts = { low_stock_count: number; expiring_soon_count: number; outstanding_total: number };
-type RevenueRow = { day: string; total: number; order_count: number };
+type RevenueRow = { bucket: string; total: number; order_count: number };
 type TopMedicine = { medicine_id: string; name: string; qty_sold: number; revenue: number };
 
 export function CeoDashboard({
@@ -42,6 +47,7 @@ export function CeoDashboard({
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [revenue, setRevenue] = useState<RevenueRow[]>(initialRevenue);
+  const [granularity, setGranularity] = useState<"day" | "hour">("day");
   const [topMedicines, setTopMedicines] = useState<TopMedicine[]>(initialTopMedicines);
   const [isPending, startTransition] = useTransition();
   const isFirstRender = useRef(true);
@@ -52,12 +58,14 @@ export function CeoDashboard({
       return;
     }
     const { from, to } = presetToRange(preset, customFrom, customTo);
+    const singleDay = isSingleDayRange(preset, customFrom, customTo);
     startTransition(async () => {
       const [rev, top] = await Promise.all([
-        getRevenueByDay(from, to),
+        singleDay ? getRevenueByHour(from, to) : getRevenueByDay(from, to),
         getTopSellingMedicines(from, to, 10),
       ]);
-      setRevenue(rev);
+      setGranularity(singleDay ? "hour" : "day");
+      setRevenue(rev.map((r) => ({ bucket: "hour" in r ? r.hour : r.day, total: r.total, order_count: r.order_count })));
       setTopMedicines(top);
     });
   }, [preset, customFrom, customTo]);
@@ -146,10 +154,16 @@ export function CeoDashboard({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={revenue}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="day" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" />
+              <XAxis
+                dataKey="bucket"
+                tick={{ fontSize: 12 }}
+                stroke="var(--muted-foreground)"
+                tickFormatter={granularity === "hour" ? formatHourLabel : undefined}
+              />
               <YAxis tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" />
               <Tooltip
                 cursor={{ fill: "var(--accent)" }}
+                labelFormatter={granularity === "hour" ? (label) => formatHourLabel(String(label)) : undefined}
                 contentStyle={{
                   background: "var(--card)",
                   border: "1px solid var(--border)",
