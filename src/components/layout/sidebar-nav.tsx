@@ -9,6 +9,7 @@ import {
   Receipt,
   Users,
   UserCog,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ const ICONS: Record<string, LucideIcon> = {
   receipt: Receipt,
   users: Users,
   "user-cog": UserCog,
+  settings: Settings,
 };
 
 export function SidebarNav({ role }: { role: Role }) {

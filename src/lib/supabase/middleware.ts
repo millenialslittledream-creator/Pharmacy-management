@@ -57,8 +57,8 @@ export async function updateSession(request: NextRequest) {
     }
 
     const blockedPrefixes: Record<string, string[]> = {
-      staff: ["/ceo", "/sales", "/inventory", "/team"],
-      pharmacist: ["/ceo", "/team"],
+      staff: ["/ceo", "/sales", "/inventory", "/team", "/settings"],
+      pharmacist: ["/ceo", "/team", "/settings"],
       ceo: [],
     };
     if (profile && blockedPrefixes[profile.role].some((p) => path.startsWith(p))) {

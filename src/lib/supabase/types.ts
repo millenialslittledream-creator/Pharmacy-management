@@ -365,19 +365,34 @@ export type Database = {
       }
       organizations: {
         Row: {
+          address: string | null
           created_at: string
+          default_reorder_level: number
+          gstin: string | null
           id: string
+          invoice_prefix: string
           name: string
+          phone: string | null
         }
         Insert: {
+          address?: string | null
           created_at?: string
+          default_reorder_level?: number
+          gstin?: string | null
           id?: string
+          invoice_prefix?: string
           name: string
+          phone?: string | null
         }
         Update: {
+          address?: string | null
           created_at?: string
+          default_reorder_level?: number
+          gstin?: string | null
           id?: string
+          invoice_prefix?: string
           name?: string
+          phone?: string | null
         }
         Relationships: []
       }

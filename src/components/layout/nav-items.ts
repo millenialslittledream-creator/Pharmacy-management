@@ -1,7 +1,7 @@
 import type { Database } from "@/lib/supabase/types";
 
 type Role = Database["public"]["Enums"]["user_role"];
-type IconName = "layout-dashboard" | "trending-up" | "package" | "receipt" | "users" | "user-cog";
+type IconName = "layout-dashboard" | "trending-up" | "package" | "receipt" | "users" | "user-cog" | "settings";
 
 export const NAV_ITEMS: { href: string; label: string; roles: Role[]; icon: IconName }[] = [
   { href: "/ceo", label: "CEO Dashboard", roles: ["ceo"], icon: "layout-dashboard" },
@@ -10,4 +10,5 @@ export const NAV_ITEMS: { href: string; label: string; roles: Role[]; icon: Icon
   { href: "/billing", label: "Billing", roles: ["ceo", "pharmacist", "staff"], icon: "receipt" },
   { href: "/customers", label: "Customers", roles: ["ceo", "pharmacist", "staff"], icon: "users" },
   { href: "/team", label: "Team", roles: ["ceo"], icon: "user-cog" },
+  { href: "/settings", label: "Settings", roles: ["ceo"], icon: "settings" },
 ];
