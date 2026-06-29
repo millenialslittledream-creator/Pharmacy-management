@@ -413,6 +413,45 @@ export type Database = {
           },
         ]
       }
+      quick_picks: {
+        Row: {
+          created_at: string
+          id: string
+          medicine_id: string
+          org_id: string
+          position: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          medicine_id: string
+          org_id: string
+          position: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          medicine_id?: string
+          org_id?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quick_picks_medicine_id_fkey"
+            columns: ["medicine_id"]
+            isOneToOne: false
+            referencedRelation: "medicines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quick_picks_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_movements: {
         Row: {
           batch_id: string

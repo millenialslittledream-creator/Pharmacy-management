@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireOrgId } from "@/lib/actions/require-org";
+import { sanitizeSearchTerm } from "@/lib/search";
 
 export async function listCustomers(query?: string, page = 1, pageSize = 20) {
   const { supabase } = await requireOrgId();
@@ -13,8 +14,9 @@ export async function listCustomers(query?: string, page = 1, pageSize = 20) {
     })
     .order("name");
 
-  if (query?.trim()) {
-    q = q.or(`name.ilike.%${query}%,phone.ilike.%${query}%`);
+  const term = query ? sanitizeSearchTerm(query) : "";
+  if (term) {
+    q = q.or(`name.ilike.%${term}%,phone.ilike.%${term}%`);
   }
 
   const from = (page - 1) * pageSize;

@@ -2,16 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { requireOrgId } from "@/lib/actions/require-org";
+import { sanitizeSearchTerm } from "@/lib/search";
 
 export async function searchMedicines(query: string) {
   const { supabase, orgId } = await requireOrgId();
-  if (!query.trim()) return [];
+  const term = sanitizeSearchTerm(query);
+  if (!term) return [];
 
   const { data, error } = await supabase
     .from("medicines")
     .select("id, name, generic_name, manufacturer, unit, default_sale_rate, barcode")
     .eq("org_id", orgId)
-    .or(`name.ilike.%${query}%,generic_name.ilike.%${query}%`)
+    .or(`name.ilike.%${term}%,generic_name.ilike.%${term}%,barcode.ilike.%${term}%`)
     .order("name")
     .limit(15);
 

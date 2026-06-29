@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -172,7 +173,11 @@ export function InvoiceList() {
           )}
           {invoices.map((inv) => (
             <TableRow key={inv.id}>
-              <TableCell className="font-medium">{inv.invoice_no}</TableCell>
+              <TableCell className="font-medium">
+                <Link href={`/billing/${inv.id}`} className="hover:underline">
+                  {inv.invoice_no}
+                </Link>
+              </TableCell>
               <TableCell>{new Date(inv.created_at).toLocaleString()}</TableCell>
               <TableCell>{inv.customers?.name ?? "Walk-in"}</TableCell>
               <TableCell className="capitalize">{inv.payment_mode}</TableCell>
@@ -182,7 +187,10 @@ export function InvoiceList() {
                 </Badge>
               </TableCell>
               <TableCell className="text-right">{inv.grand_total.toFixed(2)}</TableCell>
-              <TableCell>
+              <TableCell className="flex justify-end gap-2">
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/billing/${inv.id}`}>View</Link>
+                </Button>
                 {inv.status === "paid" && (
                   <Button variant="outline" size="sm" onClick={() => handleReturn(inv.id)}>
                     Return

@@ -25,9 +25,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className="relative flex min-h-screen">
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_15%_0%,oklch(0.4_0.1_178/8%),transparent_55%)] dark:bg-[radial-gradient(circle_at_15%_0%,oklch(0.78_0.13_178/10%),transparent_55%)]"
+        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_15%_0%,oklch(0.4_0.1_178/8%),transparent_55%)] dark:bg-[radial-gradient(circle_at_15%_0%,oklch(0.78_0.13_178/10%),transparent_55%)] print:hidden"
       />
-      <aside className="flex w-64 flex-col gap-6 border-r border-sidebar-border bg-sidebar p-5">
+      <aside className="flex w-64 flex-col gap-6 border-r border-sidebar-border bg-sidebar p-5 print:hidden">
         <div className="flex items-center gap-3">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground shadow-ambient">
             {initial}
@@ -52,7 +52,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </Button>
         </form>
       </aside>
-      <main className="flex-1 p-6 lg:p-8">{children}</main>
+      <main className="flex-1 p-6 lg:p-8 print:p-0">{children}</main>
     </div>
   );
 }

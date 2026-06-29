@@ -2,6 +2,7 @@
 
 import { revalidatePath, updateTag } from "next/cache";
 import { requireOrgId } from "@/lib/actions/require-org";
+import { sanitizeSearchTerm } from "@/lib/search";
 import type { Database } from "@/lib/supabase/types";
 
 type PaymentMode = Database["public"]["Enums"]["payment_mode"];
@@ -21,12 +22,13 @@ export async function listAvailableBatches(medicineId: string) {
 
 export async function searchCustomers(query: string) {
   const { supabase } = await requireOrgId();
-  if (!query.trim()) return [];
+  const term = sanitizeSearchTerm(query);
+  if (!term) return [];
 
   const { data, error } = await supabase
     .from("customers")
     .select("id, name, phone")
-    .or(`name.ilike.%${query}%,phone.ilike.%${query}%`)
+    .or(`name.ilike.%${term}%,phone.ilike.%${term}%`)
     .order("name")
     .limit(10);
 
@@ -36,6 +38,17 @@ export async function searchCustomers(query: string) {
 
 export async function createQuickCustomer(name: string, phone?: string) {
   const { supabase, orgId } = await requireOrgId();
+
+  if (phone) {
+    const { data: existing } = await supabase
+      .from("customers")
+      .select("id, name, phone")
+      .eq("org_id", orgId)
+      .eq("phone", phone)
+      .maybeSingle();
+    if (existing) return existing;
+  }
+
   const { data, error } = await supabase
     .from("customers")
     .insert({ org_id: orgId, name, phone })
@@ -52,6 +65,29 @@ export type InvoiceLineInput = {
   unit_rate: number;
   discount_pct?: number;
 };
+
+export async function getInvoiceDetail(invoiceId: string) {
+  const { supabase } = await requireOrgId();
+
+  const { data: invoice, error: invoiceError } = await supabase
+    .from("invoices")
+    .select(
+      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, customers(name, phone), organizations(name)",
+    )
+    .eq("id", invoiceId)
+    .single();
+  if (invoiceError) throw invoiceError;
+
+  const { data: items, error: itemsError } = await supabase
+    .from("invoice_items")
+    .select(
+      "id, qty, unit_rate, discount_pct, line_total, medicine_batches(batch_no, medicines(name, unit))",
+    )
+    .eq("invoice_id", invoiceId);
+  if (itemsError) throw itemsError;
+
+  return { invoice, items };
+}
 
 function generateInvoiceNo() {
   const rand = Math.random().toString(36).slice(2, 6).toUpperCase();

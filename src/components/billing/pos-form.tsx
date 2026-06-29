@@ -24,7 +24,13 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MedicineCombobox, type MedicineOption } from "@/components/inventory/medicine-combobox";
 import { CustomerCombobox, type CustomerOption } from "@/components/billing/customer-combobox";
-import { listAvailableBatches, submitInvoice, type InvoiceLineInput } from "@/lib/actions/billing";
+import { QuickAddPanel, type QuickPick } from "@/components/billing/quick-add-panel";
+import {
+  createQuickCustomer,
+  listAvailableBatches,
+  submitInvoice,
+  type InvoiceLineInput,
+} from "@/lib/actions/billing";
 import type { Database } from "@/lib/supabase/types";
 import { X } from "lucide-react";
 
@@ -43,7 +49,13 @@ type CartLine = {
   discountPct: number;
 };
 
-export function PosForm() {
+export function PosForm({
+  initialQuickPicks,
+  canEditQuickPicks,
+}: {
+  initialQuickPicks: QuickPick[];
+  canEditQuickPicks: boolean;
+}) {
   const router = useRouter();
   const [stagedMedicine, setStagedMedicine] = useState<MedicineOption | null>(null);
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -52,6 +64,8 @@ export function PosForm() {
 
   const [cart, setCart] = useState<CartLine[]>([]);
   const [customer, setCustomer] = useState<CustomerOption | null>(null);
+  const [leadName, setLeadName] = useState("");
+  const [leadPhone, setLeadPhone] = useState("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("cash");
   const [billDiscount, setBillDiscount] = useState("0");
   const [isPending, startTransition] = useTransition();
@@ -99,6 +113,30 @@ export function PosForm() {
     setStagedQty("1");
   }
 
+  async function handleQuickAdd(medicine: { id: string; name: string }) {
+    const available = await listAvailableBatches(medicine.id);
+    const batch = available[0];
+    if (!batch) {
+      toast.error(`No stock available for ${medicine.name}`);
+      return;
+    }
+    setCart((c) => [
+      ...c,
+      {
+        medicineId: medicine.id,
+        medicineName: medicine.name,
+        batchId: batch.id,
+        batchNo: batch.batch_no,
+        expiryDate: batch.expiry_date,
+        availableQty: batch.qty_in_stock,
+        qty: 1,
+        unitRate: batch.sale_rate,
+        discountPct: 0,
+      },
+    ]);
+    toast.success(`${medicine.name} added`);
+  }
+
   function removeLine(index: number) {
     setCart((c) => c.filter((_, i) => i !== index));
   }
@@ -128,17 +166,20 @@ export function PosForm() {
 
     startTransition(async () => {
       try {
-        await submitInvoice({
-          customerId: customer?.id,
+        let customerId = customer?.id;
+        if (!customerId && leadName.trim()) {
+          const lead = await createQuickCustomer(leadName.trim(), leadPhone.trim() || undefined);
+          customerId = lead.id;
+        }
+
+        const invoiceId = await submitInvoice({
+          customerId,
           paymentMode,
           discountTotal: discount,
           items,
         });
         toast.success("Invoice created");
-        setCart([]);
-        setCustomer(null);
-        setBillDiscount("0");
-        router.refresh();
+        router.push(`/billing/${invoiceId}`);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to create invoice");
       }
@@ -152,6 +193,11 @@ export function PosForm() {
           <CardTitle>New bill</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <QuickAddPanel
+            initialPicks={initialQuickPicks}
+            canEdit={canEditQuickPicks}
+            onQuickAdd={handleQuickAdd}
+          />
           <div className="flex flex-wrap items-end gap-2">
             <div className="min-w-64 flex-1">
               <Label className="mb-1.5 block">Medicine</Label>
@@ -247,6 +293,33 @@ export function PosForm() {
             <Label>Customer</Label>
             <CustomerCombobox value={customer} onSelect={setCustomer} />
           </div>
+          {customer ? (
+            <div className="flex items-center justify-between rounded-lg bg-accent/40 px-3 py-2 text-sm">
+              <span>
+                {customer.name}
+                {customer.phone ? ` · ${customer.phone}` : ""}
+              </span>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setCustomer(null)}>
+                Change
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-1.5 rounded-lg border border-dashed p-3">
+              <p className="text-xs text-muted-foreground">
+                New customer? Capture their details for follow-ups and loyalty tracking.
+              </p>
+              <Input
+                placeholder="Customer name"
+                value={leadName}
+                onChange={(e) => setLeadName(e.target.value)}
+              />
+              <Input
+                placeholder="Phone number"
+                value={leadPhone}
+                onChange={(e) => setLeadPhone(e.target.value)}
+              />
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>Payment mode</Label>
             <Select value={paymentMode} onValueChange={(v) => setPaymentMode(v as PaymentMode)}>

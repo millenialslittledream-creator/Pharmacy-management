@@ -46,3 +46,5 @@ __pycache__/
 
 # graphify generated output (regenerate with `graphify update .`)
 /graphify-out/
+
+.vercel
