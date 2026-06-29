@@ -24,9 +24,13 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
+  const path = request.nextUrl.pathname;
+  if (path.startsWith("/api/")) {
+    return supabaseResponse;
+  }
+
   const { data: { user } } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
   const isAuthRoute =
     path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/invite");
 
