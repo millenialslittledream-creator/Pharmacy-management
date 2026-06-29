@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import {
   default as makeWASocket,
   useMultiFileAuthState,
+  fetchLatestBaileysVersion,
   DisconnectReason,
 } from "@whiskeysockets/baileys";
 
@@ -19,8 +20,10 @@ let connectionStatus = "disconnected";
 
 async function connectToWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState("auth_info");
+  const { version } = await fetchLatestBaileysVersion();
   sock = makeWASocket({
     auth: state,
+    version,
     logger: pino({ level: "silent" }),
   });
 
@@ -42,7 +45,7 @@ async function connectToWhatsApp() {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
       console.log("WhatsApp connection closed.", { statusCode, shouldReconnect });
-      if (shouldReconnect) connectToWhatsApp();
+      if (shouldReconnect) setTimeout(connectToWhatsApp, 5000);
     }
   });
 }
