@@ -1,9 +1,11 @@
 import express from "express";
 import pino from "pino";
 import QRCode from "qrcode";
-import baileys from "@whiskeysockets/baileys";
-
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = baileys;
+import {
+  default as makeWASocket,
+  useMultiFileAuthState,
+  DisconnectReason,
+} from "@whiskeysockets/baileys";
 
 const API_SECRET = process.env.API_SECRET;
 if (!API_SECRET) {
