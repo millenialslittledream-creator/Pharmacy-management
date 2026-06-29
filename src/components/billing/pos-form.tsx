@@ -206,8 +206,8 @@ export function PosForm({
             <div className="w-48">
               <Label className="mb-1.5 block">Batch (FEFO first)</Label>
               <Select value={stagedBatchId} onValueChange={setStagedBatchId} disabled={batches.length === 0}>
-                <SelectTrigger>
-                  <SelectValue placeholder="No stock" />
+                <SelectTrigger className="w-full">
+                  <SelectValue className="truncate" placeholder="No stock" />
                 </SelectTrigger>
                 <SelectContent>
                   {batches.map((b) => (
