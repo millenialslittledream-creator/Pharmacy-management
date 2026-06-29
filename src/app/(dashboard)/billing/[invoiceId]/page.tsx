@@ -22,7 +22,13 @@ export default async function InvoiceDetailPage({
 
   const { invoice, items } = detail;
   const customer = invoice.customers as unknown as { name: string; phone: string | null } | null;
-  const org = invoice.organizations as unknown as { name: string } | null;
+  const org = invoice.organizations as unknown as {
+    name: string;
+    gstin: string | null;
+    address: string | null;
+    phone: string | null;
+  } | null;
+  const hasTax = invoice.cgst_total > 0 || invoice.sgst_total > 0;
 
   return (
     <div className="space-y-4">
@@ -44,6 +50,12 @@ export default async function InvoiceDetailPage({
               {invoice.status}
             </Badge>
           </div>
+          {(org?.address || org?.phone || org?.gstin) && (
+            <p className="text-xs text-muted-foreground">
+              {[org?.address, org?.phone].filter(Boolean).join(" · ")}
+              {org?.gstin ? ` · GSTIN: ${org.gstin}` : ""}
+            </p>
+          )}
           <p className="text-sm text-muted-foreground">
             {invoice.invoice_no} &middot; {new Date(invoice.created_at).toLocaleString()}
           </p>
@@ -59,9 +71,12 @@ export default async function InvoiceDetailPage({
             <thead>
               <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="py-2">Medicine</th>
+                <th className="py-2">HSN</th>
                 <th className="py-2 text-right">Qty</th>
                 <th className="py-2 text-right">Rate</th>
                 <th className="py-2 text-right">Disc %</th>
+                <th className="py-2 text-right">Taxable</th>
+                {hasTax && <th className="py-2 text-right">Tax</th>}
                 <th className="py-2 text-right">Total</th>
               </tr>
             </thead>
@@ -69,7 +84,7 @@ export default async function InvoiceDetailPage({
               {items.map((item) => {
                 const batch = item.medicine_batches as unknown as {
                   batch_no: string;
-                  medicines: { name: string; unit: string | null } | null;
+                  medicines: { name: string; unit: string | null; hsn_code: string | null } | null;
                 } | null;
                 return (
                   <tr key={item.id} className="border-b last:border-0">
@@ -77,10 +92,19 @@ export default async function InvoiceDetailPage({
                       {batch?.medicines?.name ?? "—"}
                       <span className="ml-1 text-xs text-muted-foreground">{batch?.batch_no}</span>
                     </td>
+                    <td className="py-2 text-xs text-muted-foreground">
+                      {batch?.medicines?.hsn_code ?? "—"}
+                    </td>
                     <td className="py-2 text-right">{item.qty}</td>
                     <td className="py-2 text-right">{item.unit_rate.toFixed(2)}</td>
                     <td className="py-2 text-right">{item.discount_pct}</td>
                     <td className="py-2 text-right">{item.line_total.toFixed(2)}</td>
+                    {hasTax && (
+                      <td className="py-2 text-right text-xs text-muted-foreground">
+                        {item.tax_rate > 0 ? `${item.tax_rate}% · ${item.tax_amount.toFixed(2)}` : "—"}
+                      </td>
+                    )}
+                    <td className="py-2 text-right">{(item.line_total + item.tax_amount).toFixed(2)}</td>
                   </tr>
                 );
               })}
@@ -88,6 +112,22 @@ export default async function InvoiceDetailPage({
           </table>
 
           <div className="space-y-1 border-t pt-3 text-sm">
+            <div className="flex justify-between">
+              <span>Taxable value</span>
+              <span>{invoice.taxable_value.toFixed(2)}</span>
+            </div>
+            {hasTax && (
+              <>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>CGST</span>
+                  <span>{invoice.cgst_total.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>SGST</span>
+                  <span>{invoice.sgst_total.toFixed(2)}</span>
+                </div>
+              </>
+            )}
             <div className="flex justify-between">
               <span>Discount</span>
               <span>-{invoice.discount_total.toFixed(2)}</span>

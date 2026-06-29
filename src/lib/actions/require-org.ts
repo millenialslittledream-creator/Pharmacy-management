@@ -13,7 +13,7 @@ export const getAuthContext = cache(async () => {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, org_id, role, organizations(name)")
+    .select("full_name, org_id, role, organizations(name, invoice_prefix)")
     .eq("id", user.id)
     .single();
 
@@ -24,5 +24,6 @@ export async function requireOrgId() {
   const { supabase, profile } = await getAuthContext();
   if (!profile) throw new Error("Not authenticated");
 
-  return { supabase, orgId: profile.org_id, role: profile.role };
+  const org = profile.organizations as unknown as { name: string; invoice_prefix: string } | null;
+  return { supabase, orgId: profile.org_id, role: profile.role, invoicePrefix: org?.invoice_prefix ?? "INV" };
 }

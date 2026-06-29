@@ -42,6 +42,7 @@ export type CreateMedicineInput = {
   unit?: string;
   pack_size?: string;
   hsn_code?: string;
+  tax_rate?: number;
   reorder_level?: number;
   default_purchase_rate?: number;
   default_sale_rate?: number;

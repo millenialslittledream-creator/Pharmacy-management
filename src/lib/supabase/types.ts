@@ -116,6 +116,8 @@ export type Database = {
           line_total: number
           medicine_batch_id: string
           qty: number
+          tax_amount: number
+          tax_rate: number
           unit_rate: number
         }
         Insert: {
@@ -125,6 +127,8 @@ export type Database = {
           line_total: number
           medicine_batch_id: string
           qty: number
+          tax_amount?: number
+          tax_rate?: number
           unit_rate: number
         }
         Update: {
@@ -134,6 +138,8 @@ export type Database = {
           line_total?: number
           medicine_batch_id?: string
           qty?: number
+          tax_amount?: number
+          tax_rate?: number
           unit_rate?: number
         }
         Relationships: [
@@ -155,6 +161,7 @@ export type Database = {
       }
       invoices: {
         Row: {
+          cgst_total: number
           created_at: string
           created_by: string | null
           customer_id: string | null
@@ -165,9 +172,12 @@ export type Database = {
           org_id: string
           parent_invoice_id: string | null
           payment_mode: Database["public"]["Enums"]["payment_mode"]
+          sgst_total: number
           status: Database["public"]["Enums"]["invoice_status"]
+          taxable_value: number
         }
         Insert: {
+          cgst_total?: number
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -178,9 +188,12 @@ export type Database = {
           org_id: string
           parent_invoice_id?: string | null
           payment_mode?: Database["public"]["Enums"]["payment_mode"]
+          sgst_total?: number
           status?: Database["public"]["Enums"]["invoice_status"]
+          taxable_value?: number
         }
         Update: {
+          cgst_total?: number
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -191,7 +204,9 @@ export type Database = {
           org_id?: string
           parent_invoice_id?: string | null
           payment_mode?: Database["public"]["Enums"]["payment_mode"]
+          sgst_total?: number
           status?: Database["public"]["Enums"]["invoice_status"]
+          taxable_value?: number
         }
         Relationships: [
           {

@@ -25,6 +25,7 @@ const EMPTY = {
   unit: "",
   pack_size: "",
   hsn_code: "",
+  tax_rate: "",
   reorder_level: "",
   default_purchase_rate: "",
   default_sale_rate: "",
@@ -66,6 +67,7 @@ export function AddMedicineDialog() {
           unit: form.unit || undefined,
           pack_size: form.pack_size || undefined,
           hsn_code: form.hsn_code || undefined,
+          tax_rate: form.tax_rate ? Number(form.tax_rate) : undefined,
           reorder_level: form.reorder_level ? Number(form.reorder_level) : undefined,
           default_purchase_rate: form.default_purchase_rate ? Number(form.default_purchase_rate) : undefined,
           default_sale_rate: form.default_sale_rate ? Number(form.default_sale_rate) : undefined,
@@ -118,6 +120,10 @@ export function AddMedicineDialog() {
             <div className="space-y-1.5">
               <Label htmlFor="hsn_code">HSN code</Label>
               <Input id="hsn_code" value={form.hsn_code} onChange={(e) => set("hsn_code", e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tax_rate">GST rate (%)</Label>
+              <Input id="tax_rate" type="number" value={form.tax_rate} onChange={(e) => set("tax_rate", e.target.value)} placeholder="12" />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="reorder_level">Reorder level</Label>

@@ -72,7 +72,7 @@ export async function getInvoiceDetail(invoiceId: string) {
   const { data: invoice, error: invoiceError } = await supabase
     .from("invoices")
     .select(
-      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, customers(name, phone), organizations(name)",
+      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, taxable_value, cgst_total, sgst_total, customers(name, phone), organizations(name, gstin, address, phone)",
     )
     .eq("id", invoiceId)
     .single();
@@ -81,7 +81,7 @@ export async function getInvoiceDetail(invoiceId: string) {
   const { data: items, error: itemsError } = await supabase
     .from("invoice_items")
     .select(
-      "id, qty, unit_rate, discount_pct, line_total, medicine_batches(batch_no, medicines(name, unit))",
+      "id, qty, unit_rate, discount_pct, line_total, tax_rate, tax_amount, medicine_batches(batch_no, medicines(name, unit, hsn_code))",
     )
     .eq("invoice_id", invoiceId);
   if (itemsError) throw itemsError;
@@ -89,9 +89,9 @@ export async function getInvoiceDetail(invoiceId: string) {
   return { invoice, items };
 }
 
-function generateInvoiceNo() {
+function generateInvoiceNo(prefix: string) {
   const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `INV-${Date.now()}-${rand}`;
+  return `${prefix}-${Date.now()}-${rand}`;
 }
 
 export async function submitInvoice(input: {
@@ -100,11 +100,11 @@ export async function submitInvoice(input: {
   discountTotal: number;
   items: InvoiceLineInput[];
 }) {
-  const { supabase, orgId } = await requireOrgId();
+  const { supabase, orgId, invoicePrefix } = await requireOrgId();
 
   const { data, error } = await supabase.rpc("create_invoice", {
     p_org_id: orgId,
-    p_invoice_no: generateInvoiceNo(),
+    p_invoice_no: generateInvoiceNo(invoicePrefix),
     p_customer_id: input.customerId ?? null,
     p_payment_mode: input.paymentMode,
     p_discount_total: input.discountTotal,
