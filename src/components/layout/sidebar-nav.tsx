@@ -10,6 +10,7 @@ import {
   Users,
   UserCog,
   Settings,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ const ICONS: Record<string, LucideIcon> = {
   users: Users,
   "user-cog": UserCog,
   settings: Settings,
+  "shield-check": ShieldCheck,
 };
 
 export function SidebarNav({ role }: { role: Role }) {

@@ -18,7 +18,13 @@ import { addQuickPick, removeQuickPick } from "@/lib/actions/quick-picks";
 export type QuickPick = {
   id: string;
   position: number;
-  medicines: { id: string; name: string; default_sale_rate: number | null; unit: string | null } | null;
+  medicines: {
+    id: string;
+    name: string;
+    default_sale_rate: number | null;
+    unit: string | null;
+    schedule_category: string | null;
+  } | null;
 };
 
 const MAX_QUICK_PICKS = 7;
@@ -30,7 +36,7 @@ export function QuickAddPanel({
 }: {
   initialPicks: QuickPick[];
   canEdit: boolean;
-  onQuickAdd: (medicine: { id: string; name: string }) => void;
+  onQuickAdd: (medicine: { id: string; name: string; schedule_category: string | null }) => void;
 }) {
   const [picks, setPicks] = useState(initialPicks);
   const [editOpen, setEditOpen] = useState(false);
@@ -56,6 +62,7 @@ export function QuickAddPanel({
               name: draft.name,
               default_sale_rate: draft.default_sale_rate,
               unit: draft.unit,
+              schedule_category: draft.schedule_category,
             },
           },
         ]);

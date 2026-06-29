@@ -9,7 +9,7 @@ export async function listQuickPicks() {
   const { supabase } = await requireOrgId();
   const { data, error } = await supabase
     .from("quick_picks")
-    .select("id, position, medicines(id, name, default_sale_rate, unit)")
+    .select("id, position, medicines(id, name, default_sale_rate, unit, schedule_category)")
     .order("position");
 
   if (error) throw error;

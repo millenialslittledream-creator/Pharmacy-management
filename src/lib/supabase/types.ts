@@ -115,6 +115,8 @@ export type Database = {
           invoice_id: string
           line_total: number
           medicine_batch_id: string
+          prescribing_doctor: string | null
+          prescription_ref: string | null
           qty: number
           tax_amount: number
           tax_rate: number
@@ -126,6 +128,8 @@ export type Database = {
           invoice_id: string
           line_total: number
           medicine_batch_id: string
+          prescribing_doctor?: string | null
+          prescription_ref?: string | null
           qty: number
           tax_amount?: number
           tax_rate?: number
@@ -137,6 +141,8 @@ export type Database = {
           invoice_id?: string
           line_total?: number
           medicine_batch_id?: string
+          prescribing_doctor?: string | null
+          prescription_ref?: string | null
           qty?: number
           tax_amount?: number
           tax_rate?: number
@@ -590,6 +596,23 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      scheduled_drug_register: {
+        Row: {
+          batch_no: string | null
+          created_at: string | null
+          customer_name: string | null
+          invoice_id: string | null
+          invoice_item_id: string | null
+          invoice_no: string | null
+          medicine_name: string | null
+          org_id: string | null
+          prescribing_doctor: string | null
+          prescription_ref: string | null
+          qty: number | null
+          schedule_category: string | null
+        }
+        Relationships: []
       }
     }
     Functions: {

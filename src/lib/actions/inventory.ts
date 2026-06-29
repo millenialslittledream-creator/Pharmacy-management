@@ -11,7 +11,7 @@ export async function searchMedicines(query: string) {
 
   const { data, error } = await supabase
     .from("medicines")
-    .select("id, name, generic_name, manufacturer, unit, default_sale_rate, barcode")
+    .select("id, name, generic_name, manufacturer, unit, default_sale_rate, barcode, schedule_category")
     .eq("org_id", orgId)
     .or(`name.ilike.%${term}%,generic_name.ilike.%${term}%,barcode.ilike.%${term}%`)
     .order("name")
@@ -25,7 +25,7 @@ export async function findMedicineByBarcode(barcode: string) {
   const { supabase, orgId } = await requireOrgId();
   const { data, error } = await supabase
     .from("medicines")
-    .select("id, name, generic_name, manufacturer, unit, default_sale_rate, barcode")
+    .select("id, name, generic_name, manufacturer, unit, default_sale_rate, barcode, schedule_category")
     .eq("org_id", orgId)
     .eq("barcode", barcode)
     .maybeSingle();

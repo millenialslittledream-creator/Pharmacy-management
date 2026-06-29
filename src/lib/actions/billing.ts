@@ -64,6 +64,8 @@ export type InvoiceLineInput = {
   qty: number;
   unit_rate: number;
   discount_pct?: number;
+  prescribing_doctor?: string;
+  prescription_ref?: string;
 };
 
 export async function getInvoiceDetail(invoiceId: string) {
@@ -113,6 +115,8 @@ export async function submitInvoice(input: {
       qty: item.qty,
       unit_rate: item.unit_rate,
       discount_pct: item.discount_pct ?? 0,
+      prescribing_doctor: item.prescribing_doctor || null,
+      prescription_ref: item.prescription_ref || null,
     })),
   });
 

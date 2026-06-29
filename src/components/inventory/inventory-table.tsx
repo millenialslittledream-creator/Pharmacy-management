@@ -99,6 +99,7 @@ export function InventoryTable({ rows }: { rows: StockRow[] }) {
                       unit: row.unit,
                       default_sale_rate: null,
                       barcode: null,
+                      schedule_category: null,
                     }}
                   />
                 </TableCell>

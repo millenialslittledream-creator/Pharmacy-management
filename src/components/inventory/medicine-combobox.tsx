@@ -23,6 +23,7 @@ export type MedicineOption = {
   unit: string | null;
   default_sale_rate: number | null;
   barcode: string | null;
+  schedule_category: string | null;
 };
 
 export function MedicineCombobox({

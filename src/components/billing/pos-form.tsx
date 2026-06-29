@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ type Batch = { id: string; batch_no: string; expiry_date: string; sale_rate: num
 type CartLine = {
   medicineId: string;
   medicineName: string;
+  scheduleCategory: string | null;
   batchId: string;
   batchNo: string;
   expiryDate: string;
@@ -47,6 +48,8 @@ type CartLine = {
   qty: number;
   unitRate: number;
   discountPct: number;
+  prescribingDoctor: string;
+  prescriptionRef: string;
 };
 
 export function PosForm({
@@ -98,6 +101,7 @@ export function PosForm({
       {
         medicineId: stagedMedicine.id,
         medicineName: stagedMedicine.name,
+        scheduleCategory: stagedMedicine.schedule_category,
         batchId: batch.id,
         batchNo: batch.batch_no,
         expiryDate: batch.expiry_date,
@@ -105,6 +109,8 @@ export function PosForm({
         qty,
         unitRate: batch.sale_rate,
         discountPct: 0,
+        prescribingDoctor: "",
+        prescriptionRef: "",
       },
     ]);
     setStagedMedicine(null);
@@ -113,7 +119,7 @@ export function PosForm({
     setStagedQty("1");
   }
 
-  async function handleQuickAdd(medicine: { id: string; name: string }) {
+  async function handleQuickAdd(medicine: { id: string; name: string; schedule_category: string | null }) {
     const available = await listAvailableBatches(medicine.id);
     const batch = available[0];
     if (!batch) {
@@ -125,6 +131,7 @@ export function PosForm({
       {
         medicineId: medicine.id,
         medicineName: medicine.name,
+        scheduleCategory: medicine.schedule_category,
         batchId: batch.id,
         batchNo: batch.batch_no,
         expiryDate: batch.expiry_date,
@@ -132,6 +139,8 @@ export function PosForm({
         qty: 1,
         unitRate: batch.sale_rate,
         discountPct: 0,
+        prescribingDoctor: "",
+        prescriptionRef: "",
       },
     ]);
     toast.success(`${medicine.name} added`);
@@ -162,6 +171,8 @@ export function PosForm({
       qty: line.qty,
       unit_rate: line.unitRate,
       discount_pct: line.discountPct,
+      prescribing_doctor: line.prescribingDoctor.trim() || undefined,
+      prescription_ref: line.prescriptionRef.trim() || undefined,
     }));
 
     startTransition(async () => {
@@ -248,36 +259,61 @@ export function PosForm({
                 </TableRow>
               )}
               {cart.map((line, i) => (
-                <TableRow key={i}>
-                  <TableCell>{line.medicineName}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{line.batchNo}</TableCell>
-                  <TableCell className="text-right">
-                    <Input
-                      type="number"
-                      className="w-20 text-right"
-                      value={line.qty}
-                      max={line.availableQty}
-                      onChange={(e) => updateLine(i, { qty: Number(e.target.value) })}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">{line.unitRate.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">
-                    <Input
-                      type="number"
-                      className="w-16 text-right"
-                      value={line.discountPct}
-                      onChange={(e) => updateLine(i, { discountPct: Number(e.target.value) })}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {(line.qty * line.unitRate * (1 - line.discountPct / 100)).toFixed(2)}
-                  </TableCell>
-                  <TableCell>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(i)}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                <Fragment key={i}>
+                  <TableRow>
+                    <TableCell>{line.medicineName}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{line.batchNo}</TableCell>
+                    <TableCell className="text-right">
+                      <Input
+                        type="number"
+                        className="w-20 text-right"
+                        value={line.qty}
+                        max={line.availableQty}
+                        onChange={(e) => updateLine(i, { qty: Number(e.target.value) })}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">{line.unitRate.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">
+                      <Input
+                        type="number"
+                        className="w-16 text-right"
+                        value={line.discountPct}
+                        onChange={(e) => updateLine(i, { discountPct: Number(e.target.value) })}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {(line.qty * line.unitRate * (1 - line.discountPct / 100)).toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(i)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                  {line.scheduleCategory && (
+                    <TableRow className="bg-accent/20">
+                      <TableCell colSpan={7} className="py-2">
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="shrink-0 font-medium text-muted-foreground">
+                            Schedule {line.scheduleCategory} — doctor/prescription (optional):
+                          </span>
+                          <Input
+                            placeholder="Doctor name"
+                            className="h-7 max-w-40"
+                            value={line.prescribingDoctor}
+                            onChange={(e) => updateLine(i, { prescribingDoctor: e.target.value })}
+                          />
+                          <Input
+                            placeholder="Prescription ref"
+                            className="h-7 max-w-40"
+                            value={line.prescriptionRef}
+                            onChange={(e) => updateLine(i, { prescriptionRef: e.target.value })}
+                          />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
               ))}
             </TableBody>
           </Table>

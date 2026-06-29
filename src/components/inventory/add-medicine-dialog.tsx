@@ -13,6 +13,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { BarcodeScannerDialog } from "@/components/inventory/barcode-scanner";
 import { createMedicine, findMedicineByBarcode } from "@/lib/actions/inventory";
 import { ScanLine } from "lucide-react";
@@ -26,6 +33,7 @@ const EMPTY = {
   pack_size: "",
   hsn_code: "",
   tax_rate: "",
+  schedule_category: "",
   reorder_level: "",
   default_purchase_rate: "",
   default_sale_rate: "",
@@ -68,6 +76,7 @@ export function AddMedicineDialog() {
           pack_size: form.pack_size || undefined,
           hsn_code: form.hsn_code || undefined,
           tax_rate: form.tax_rate ? Number(form.tax_rate) : undefined,
+          schedule_category: form.schedule_category || undefined,
           reorder_level: form.reorder_level ? Number(form.reorder_level) : undefined,
           default_purchase_rate: form.default_purchase_rate ? Number(form.default_purchase_rate) : undefined,
           default_sale_rate: form.default_sale_rate ? Number(form.default_sale_rate) : undefined,
@@ -124,6 +133,19 @@ export function AddMedicineDialog() {
             <div className="space-y-1.5">
               <Label htmlFor="tax_rate">GST rate (%)</Label>
               <Input id="tax_rate" type="number" value={form.tax_rate} onChange={(e) => set("tax_rate", e.target.value)} placeholder="12" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Schedule category</Label>
+              <Select value={form.schedule_category} onValueChange={(v) => set("schedule_category", v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Not scheduled" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="H">Schedule H</SelectItem>
+                  <SelectItem value="H1">Schedule H1</SelectItem>
+                  <SelectItem value="X">Schedule X</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="reorder_level">Reorder level</Label>

@@ -57,7 +57,7 @@ export async function updateSession(request: NextRequest) {
     }
 
     const blockedPrefixes: Record<string, string[]> = {
-      staff: ["/ceo", "/sales", "/inventory", "/team", "/settings"],
+      staff: ["/ceo", "/sales", "/inventory", "/team", "/settings", "/compliance"],
       pharmacist: ["/ceo", "/team", "/settings"],
       ceo: [],
     };
