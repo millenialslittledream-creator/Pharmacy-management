@@ -12,6 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { RecordPaymentDialog } from "@/components/customers/record-payment-dialog";
+import { CustomerLedger } from "@/components/customers/customer-ledger";
 
 export default async function CustomerDetailPage({
   params,
@@ -27,7 +29,7 @@ export default async function CustomerDetailPage({
     notFound();
   }
 
-  const { customer, invoices } = detail;
+  const { customer, invoices, payments } = detail;
 
   return (
     <div className="space-y-4">
@@ -55,12 +57,13 @@ export default async function CustomerDetailPage({
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">Outstanding balance</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex items-center justify-between gap-2">
             {customer.outstanding_balance > 0 ? (
               <Badge variant="destructive">{customer.outstanding_balance.toFixed(2)}</Badge>
             ) : (
-              "0.00"
+              <span>0.00</span>
             )}
+            <RecordPaymentDialog customerId={customer.id} />
           </CardContent>
         </Card>
         <Card>
@@ -111,6 +114,8 @@ export default async function CustomerDetailPage({
           </Table>
         </CardContent>
       </Card>
+
+      <CustomerLedger invoices={invoices} payments={payments} />
     </div>
   );
 }

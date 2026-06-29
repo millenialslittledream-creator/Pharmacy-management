@@ -70,5 +70,12 @@ export async function getCustomerDetail(id: string) {
     .order("created_at", { ascending: false });
   if (invoicesError) throw invoicesError;
 
-  return { customer, invoices };
+  const { data: payments, error: paymentsError } = await supabase
+    .from("payments")
+    .select("id, amount, method, created_at")
+    .eq("customer_id", id)
+    .order("created_at", { ascending: false });
+  if (paymentsError) throw paymentsError;
+
+  return { customer, invoices, payments };
 }
