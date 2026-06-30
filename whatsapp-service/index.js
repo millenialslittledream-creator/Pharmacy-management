@@ -18,6 +18,15 @@ let sock = null;
 let latestQr = null;
 let connectionStatus = "disconnected";
 
+const MAX_LOGS = 100;
+const recentLogs = [];
+function logEvent(message, extra) {
+  const entry = { time: new Date().toISOString(), message, ...(extra ? { extra } : {}) };
+  recentLogs.push(entry);
+  if (recentLogs.length > MAX_LOGS) recentLogs.shift();
+  console.log(message, extra ?? "");
+}
+
 async function connectToWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState("auth_info");
   const { version } = await fetchLatestBaileysVersion();
@@ -33,18 +42,18 @@ async function connectToWhatsApp() {
     const { connection, lastDisconnect, qr } = update;
     if (qr) {
       latestQr = qr;
-      console.log("New QR code generated — visit /qr on this service to scan it.");
+      logEvent("New QR code generated");
     }
     if (connection === "open") {
       connectionStatus = "connected";
       latestQr = null;
-      console.log("WhatsApp connected.");
+      logEvent("WhatsApp connected");
     }
     if (connection === "close") {
       connectionStatus = "disconnected";
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-      console.log("WhatsApp connection closed.", { statusCode, shouldReconnect });
+      logEvent("WhatsApp connection closed", { statusCode, shouldReconnect });
       if (shouldReconnect) setTimeout(connectToWhatsApp, 5000);
     }
   });
@@ -62,21 +71,23 @@ function requireAuth(req, res, next) {
   next();
 }
 
-app.get("/status", (req, res) => {
+app.get("/status", requireAuth, (req, res) => {
   res.json({ status: connectionStatus, qrAvailable: !!latestQr });
 });
 
-app.get("/qr", async (req, res) => {
+app.get("/qr", requireAuth, async (req, res) => {
   if (connectionStatus === "connected") {
-    return res.send("Already connected — no QR needed.");
+    return res.json({ connected: true });
   }
   if (!latestQr) {
-    return res.status(404).send("No QR available yet. Refresh in a few seconds.");
+    return res.status(404).json({ error: "No QR available yet" });
   }
-  const dataUrl = await QRCode.toDataURL(latestQr);
-  res.send(`<html><body style="display:flex;justify-content:center;padding-top:2rem">
-    <img src="${dataUrl}" alt="Scan with WhatsApp" />
-  </body></html>`);
+  const qrDataUrl = await QRCode.toDataURL(latestQr);
+  res.json({ connected: false, qrDataUrl });
+});
+
+app.get("/logs", requireAuth, (req, res) => {
+  res.json({ logs: [...recentLogs].reverse() });
 });
 
 app.post("/send", requireAuth, async (req, res) => {
@@ -100,11 +111,14 @@ app.post("/send", requireAuth, async (req, res) => {
     } else {
       await sock.sendMessage(jid, { text: message });
     }
+    logEvent("Message sent", { phone: digits, hasDocument: !!documentBase64 });
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "send failed" });
+    const errorMessage = err instanceof Error ? err.message : "send failed";
+    logEvent("Message send failed", { phone, error: errorMessage });
+    res.status(500).json({ error: errorMessage });
   }
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`WhatsApp service listening on port ${PORT}`));
+app.listen(PORT, () => logEvent(`WhatsApp service listening on port ${PORT}`));
