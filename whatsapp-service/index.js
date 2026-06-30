@@ -53,7 +53,7 @@ async function connectToWhatsApp() {
 connectToWhatsApp();
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 function requireAuth(req, res, next) {
   if (req.headers["x-api-secret"] !== API_SECRET) {
@@ -80,7 +80,7 @@ app.get("/qr", async (req, res) => {
 });
 
 app.post("/send", requireAuth, async (req, res) => {
-  const { phone, message } = req.body ?? {};
+  const { phone, message, documentBase64, fileName } = req.body ?? {};
   if (!phone || !message) {
     return res.status(400).json({ error: "phone and message are required" });
   }
@@ -90,7 +90,16 @@ app.post("/send", requireAuth, async (req, res) => {
   try {
     const digits = String(phone).replace(/\D/g, "");
     const jid = `${digits}@s.whatsapp.net`;
-    await sock.sendMessage(jid, { text: message });
+    if (documentBase64) {
+      await sock.sendMessage(jid, {
+        document: Buffer.from(documentBase64, "base64"),
+        fileName: fileName || "invoice.pdf",
+        mimetype: "application/pdf",
+        caption: message,
+      });
+    } else {
+      await sock.sendMessage(jid, { text: message });
+    }
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "send failed" });

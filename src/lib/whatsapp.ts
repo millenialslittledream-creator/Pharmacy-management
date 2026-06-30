@@ -1,4 +1,8 @@
-export async function sendWhatsAppMessage(phone: string, message: string) {
+export async function sendWhatsAppMessage(
+  phone: string,
+  message: string,
+  document?: { buffer: Buffer; fileName: string },
+) {
   const url = process.env.WHATSAPP_SERVICE_URL;
   const secret = process.env.WHATSAPP_SERVICE_SECRET;
   if (!url || !secret) return;
@@ -7,8 +11,13 @@ export async function sendWhatsAppMessage(phone: string, message: string) {
     await fetch(`${url}/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-secret": secret },
-      body: JSON.stringify({ phone, message }),
-      signal: AbortSignal.timeout(8000),
+      body: JSON.stringify({
+        phone,
+        message,
+        documentBase64: document?.buffer.toString("base64"),
+        fileName: document?.fileName,
+      }),
+      signal: AbortSignal.timeout(15000),
     });
   } catch (err) {
     console.error("WhatsApp send failed:", err);

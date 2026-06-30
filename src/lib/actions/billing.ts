@@ -5,6 +5,7 @@ import { after } from "next/server";
 import { requireOrgId } from "@/lib/actions/require-org";
 import { sanitizeSearchTerm } from "@/lib/search";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { generateInvoicePdf } from "@/lib/invoice-pdf";
 import type { Database } from "@/lib/supabase/types";
 
 type PaymentMode = Database["public"]["Enums"]["payment_mode"];
@@ -139,28 +140,26 @@ async function notifyInvoiceByWhatsApp(orgId: string, customerId: string, invoic
 
   const { data: org } = await supabase
     .from("organizations")
-    .select("name, whatsapp_enabled")
+    .select("name, gstin, address, phone, whatsapp_enabled")
     .eq("id", orgId)
     .single();
   if (!org?.whatsapp_enabled) return;
 
   const { data: customer } = await supabase
     .from("customers")
-    .select("phone")
+    .select("name, phone")
     .eq("id", customerId)
     .single();
   if (!customer?.phone) return;
 
-  const { data: invoice } = await supabase
-    .from("invoices")
-    .select("invoice_no, grand_total")
-    .eq("id", invoiceId)
-    .single();
-  if (!invoice) return;
+  const { invoice, items } = await getInvoiceDetail(invoiceId);
+
+  const pdfBuffer = await generateInvoicePdf(invoice, items, org, customer);
 
   await sendWhatsAppMessage(
     customer.phone,
     `${org.name}: Your bill ${invoice.invoice_no} for ₹${invoice.grand_total.toFixed(2)} is ready. Thank you for your purchase!`,
+    { buffer: pdfBuffer, fileName: `${invoice.invoice_no}.pdf` },
   );
 }
 
