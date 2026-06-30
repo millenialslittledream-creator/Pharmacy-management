@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { getAuthContext } from "@/lib/actions/require-org";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { WhatsAppStatusBadge } from "@/components/layout/whatsapp-status-badge";
 import { Button } from "@/components/ui/button";
 import { logout } from "@/lib/actions/auth";
 
@@ -32,6 +33,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
         </div>
         <SidebarNav role={profile.role} />
+        {profile.role === "ceo" && <WhatsAppStatusBadge />}
         <form action={logout} className="mt-auto">
           <Button
             type="submit"

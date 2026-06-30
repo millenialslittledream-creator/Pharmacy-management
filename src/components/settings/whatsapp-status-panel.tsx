@@ -10,6 +10,15 @@ import { getWhatsAppStatus, getWhatsAppQr, getWhatsAppLogs } from "@/lib/actions
 type Status = { status: "connected" | "disconnected"; qrAvailable: boolean } | null;
 type LogEntry = { time: string; message: string; extra?: unknown };
 
+const POLL_INTERVAL_MS = 8000;
+
+async function fetchWhatsAppData() {
+  const [status, logs] = await Promise.all([getWhatsAppStatus(), getWhatsAppLogs()]);
+  const qrDataUrl =
+    status?.status !== "connected" ? ((await getWhatsAppQr())?.qrDataUrl ?? null) : null;
+  return { status, logs, qrDataUrl };
+}
+
 export function WhatsAppStatusPanel() {
   const [status, setStatus] = useState<Status>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -19,22 +28,32 @@ export function WhatsAppStatusPanel() {
 
   function refresh() {
     startTransition(async () => {
-      const [statusResult, logsResult] = await Promise.all([getWhatsAppStatus(), getWhatsAppLogs()]);
-      setStatus(statusResult);
-      setLogs(logsResult);
+      const data = await fetchWhatsAppData();
+      setStatus(data.status);
+      setLogs(data.logs);
+      setQrDataUrl(data.qrDataUrl);
       setChecked(true);
-
-      if (statusResult?.status !== "connected") {
-        const qrResult = await getWhatsAppQr();
-        setQrDataUrl(qrResult?.qrDataUrl ?? null);
-      } else {
-        setQrDataUrl(null);
-      }
     });
   }
 
   useEffect(() => {
-    refresh();
+    let cancelled = false;
+
+    async function poll() {
+      const data = await fetchWhatsAppData();
+      if (cancelled) return;
+      setStatus(data.status);
+      setLogs(data.logs);
+      setQrDataUrl(data.qrDataUrl);
+      setChecked(true);
+    }
+
+    poll();
+    const interval = setInterval(poll, POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   return (
