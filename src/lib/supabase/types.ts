@@ -175,6 +175,7 @@ export type Database = {
           grand_total: number
           id: string
           invoice_no: string
+          is_free: boolean
           org_id: string
           parent_invoice_id: string | null
           payment_mode: Database["public"]["Enums"]["payment_mode"]
@@ -191,6 +192,7 @@ export type Database = {
           grand_total?: number
           id?: string
           invoice_no: string
+          is_free?: boolean
           org_id: string
           parent_invoice_id?: string | null
           payment_mode?: Database["public"]["Enums"]["payment_mode"]
@@ -207,6 +209,7 @@ export type Database = {
           grand_total?: number
           id?: string
           invoice_no?: string
+          is_free?: boolean
           org_id?: string
           parent_invoice_id?: string | null
           payment_mode?: Database["public"]["Enums"]["payment_mode"]
@@ -702,6 +705,7 @@ export type Database = {
           p_customer_id: string | null
           p_discount_total: number
           p_invoice_no: string
+          p_is_free?: boolean
           p_items: Json
           p_org_id: string
           p_payment_mode: Database["public"]["Enums"]["payment_mode"]

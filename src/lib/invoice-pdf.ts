@@ -23,6 +23,7 @@ type InvoiceData = {
   taxable_value: number;
   cgst_total: number;
   sgst_total: number;
+  is_free?: boolean;
 };
 
 type OrgData = { name: string; gstin: string | null; address: string | null; phone: string | null };
@@ -60,7 +61,7 @@ export async function generateInvoicePdf(
   const orgNameWidth = doc.widthOfString(org.name);
   doc.text(org.name, LEFT, headerY);
 
-  const statusText = invoice.status.toUpperCase();
+  const statusText = invoice.is_free ? `${invoice.status.toUpperCase()} · FREE` : invoice.status.toUpperCase();
   doc.font("Helvetica-Bold").fontSize(8);
   const statusTextWidth = doc.widthOfString(statusText);
   const badgeWidth = statusTextWidth + 16;

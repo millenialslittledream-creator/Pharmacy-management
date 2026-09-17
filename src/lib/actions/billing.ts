@@ -77,7 +77,7 @@ export async function getInvoiceDetail(invoiceId: string) {
   const { data: invoice, error: invoiceError } = await supabase
     .from("invoices")
     .select(
-      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, taxable_value, cgst_total, sgst_total, customers(name, phone), organizations(name, gstin, address, phone), profiles(full_name)",
+      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, taxable_value, cgst_total, sgst_total, is_free, customers(name, phone), organizations(name, gstin, address, phone), profiles(full_name)",
     )
     .eq("id", invoiceId)
     .single();
@@ -104,6 +104,7 @@ export async function submitInvoice(input: {
   paymentMode: PaymentMode;
   discountTotal: number;
   items: InvoiceLineInput[];
+  isFree?: boolean;
 }) {
   const { supabase, orgId, invoicePrefix } = await requireOrgId();
 
@@ -121,6 +122,7 @@ export async function submitInvoice(input: {
       prescribing_doctor: item.prescribing_doctor || null,
       prescription_ref: item.prescription_ref || null,
     })),
+    p_is_free: input.isFree ?? false,
   });
 
   if (error) throw error;
@@ -157,10 +159,14 @@ async function notifyInvoiceByWhatsApp(orgId: string, customerId: string, invoic
 
   const pdfBuffer = await generateInvoicePdf(invoice, items, org, customer, biller?.full_name ?? null);
 
+  const billLine = invoice.is_free
+    ? `${org.name}: Your free bill ${invoice.invoice_no} is ready. Thank you!`
+    : `${org.name}: Your bill ${invoice.invoice_no} for ₹${invoice.grand_total.toFixed(2)} is ready. Thank you for your purchase!`;
+
   await sendWhatsAppMessage(
     orgId,
     customer.phone,
-    `${org.name}: Your bill ${invoice.invoice_no} for ₹${invoice.grand_total.toFixed(2)} is ready. Thank you for your purchase!`,
+    billLine,
     { buffer: pdfBuffer, fileName: `${invoice.invoice_no}.pdf` },
   );
 }
@@ -183,7 +189,7 @@ export async function listInvoices(filters: InvoiceFilters, page = 1, pageSize =
   let query = supabase
     .from("invoices")
     .select(
-      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, customers(name), profiles(full_name)",
+      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, is_free, customers(name), profiles(full_name)",
       { count: "exact" },
     )
     .order("created_at", { ascending: false });

@@ -47,9 +47,12 @@ export default async function InvoiceDetailPage({
         <CardHeader className="flex flex-col gap-1 border-b">
           <div className="flex items-center justify-between">
             <CardTitle className="text-xl">{org?.name ?? "Invoice"}</CardTitle>
-            <Badge variant={invoice.status === "returned" ? "destructive" : "secondary"}>
-              {invoice.status}
-            </Badge>
+            <div className="flex gap-1.5">
+              <Badge variant={invoice.status === "returned" ? "destructive" : "secondary"}>
+                {invoice.status}
+              </Badge>
+              {invoice.is_free && <Badge variant="outline">Free</Badge>}
+            </div>
           </div>
           {(org?.address || org?.phone || org?.gstin) && (
             <p className="text-xs text-muted-foreground">

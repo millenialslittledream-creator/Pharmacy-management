@@ -36,6 +36,7 @@ type Invoice = {
   status: Database["public"]["Enums"]["invoice_status"];
   grand_total: number;
   discount_total: number;
+  is_free: boolean;
   customers: { name: string } | null;
   profiles: { full_name: string } | null;
 };
@@ -184,10 +185,11 @@ export function InvoiceList() {
               <TableCell>{inv.customers?.name ?? "Walk-in"}</TableCell>
               <TableCell className="text-muted-foreground">{inv.profiles?.full_name ?? "—"}</TableCell>
               <TableCell className="capitalize">{inv.payment_mode}</TableCell>
-              <TableCell>
+              <TableCell className="flex flex-wrap gap-1">
                 <Badge variant={inv.status === "returned" ? "destructive" : "secondary"}>
                   {inv.status}
                 </Badge>
+                {inv.is_free && <Badge variant="outline">Free</Badge>}
               </TableCell>
               <TableCell className="text-right">{inv.grand_total.toFixed(2)}</TableCell>
               <TableCell className="flex justify-end gap-2">

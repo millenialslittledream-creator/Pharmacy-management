@@ -161,7 +161,7 @@ export function PosForm({
   const discount = Number(billDiscount) || 0;
   const grandTotal = Math.max(0, subtotal - discount);
 
-  function handleSubmit() {
+  function handleSubmit(isFree = false) {
     if (cart.length === 0) {
       toast.error("Add at least one item to the bill");
       return;
@@ -186,10 +186,11 @@ export function PosForm({
         const invoiceId = await submitInvoice({
           customerId,
           paymentMode,
-          discountTotal: discount,
+          discountTotal: isFree ? 0 : discount,
           items,
+          isFree,
         });
-        toast.success("Invoice created");
+        toast.success(isFree ? "Free invoice created" : "Invoice created");
         router.push(`/billing/${invoiceId}`);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to create invoice");
@@ -388,8 +389,17 @@ export function PosForm({
               <span>{grandTotal.toFixed(2)}</span>
             </div>
           </div>
-          <Button className="w-full" onClick={handleSubmit} disabled={isPending}>
+          <Button className="w-full" onClick={() => handleSubmit(false)} disabled={isPending}>
             {isPending ? "Saving..." : "Complete sale"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => handleSubmit(true)}
+            disabled={isPending}
+          >
+            Zero billing (free of cost)
           </Button>
         </CardContent>
       </Card>
