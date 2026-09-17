@@ -77,7 +77,7 @@ export async function getInvoiceDetail(invoiceId: string) {
   const { data: invoice, error: invoiceError } = await supabase
     .from("invoices")
     .select(
-      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, taxable_value, cgst_total, sgst_total, customers(name, phone), organizations(name, gstin, address, phone)",
+      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, taxable_value, cgst_total, sgst_total, customers(name, phone), organizations(name, gstin, address, phone), profiles(full_name)",
     )
     .eq("id", invoiceId)
     .single();
@@ -153,8 +153,9 @@ async function notifyInvoiceByWhatsApp(orgId: string, customerId: string, invoic
   if (!customer?.phone) return;
 
   const { invoice, items } = await getInvoiceDetail(invoiceId);
+  const biller = invoice.profiles as unknown as { full_name: string } | null;
 
-  const pdfBuffer = await generateInvoicePdf(invoice, items, org, customer);
+  const pdfBuffer = await generateInvoicePdf(invoice, items, org, customer, biller?.full_name ?? null);
 
   await sendWhatsAppMessage(
     customer.phone,
@@ -181,7 +182,7 @@ export async function listInvoices(filters: InvoiceFilters, page = 1, pageSize =
   let query = supabase
     .from("invoices")
     .select(
-      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, customers(name)",
+      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, customers(name), profiles(full_name)",
       { count: "exact" },
     )
     .order("created_at", { ascending: false });

@@ -39,6 +39,7 @@ export async function generateInvoicePdf(
   items: InvoiceItem[],
   org: OrgData,
   customer: CustomerData,
+  billedBy?: string | null,
 ): Promise<Buffer> {
   const doc = new PDFDocument({ size: "A4", margin: 40 });
   const chunks: Buffer[] = [];
@@ -85,6 +86,9 @@ export async function generateInvoicePdf(
   doc.fillColor(GRAY).font("Helvetica").fontSize(9).text(new Date(invoice.created_at).toLocaleString(), LEFT);
   if (customer) {
     doc.text(`Billed to: ${customer.name}${customer.phone ? ` (${customer.phone})` : ""}`, LEFT);
+  }
+  if (billedBy) {
+    doc.text(`Billed by: ${billedBy}`, LEFT);
   }
 
   doc.moveDown(1);

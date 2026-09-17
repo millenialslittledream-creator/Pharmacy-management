@@ -28,6 +28,7 @@ export default async function InvoiceDetailPage({
     address: string | null;
     phone: string | null;
   } | null;
+  const biller = invoice.profiles as unknown as { full_name: string } | null;
   const hasTax = invoice.cgst_total > 0 || invoice.sgst_total > 0;
 
   return (
@@ -64,6 +65,9 @@ export default async function InvoiceDetailPage({
               Billed to: {customer.name}
               {customer.phone ? ` (${customer.phone})` : ""}
             </p>
+          )}
+          {biller?.full_name && (
+            <p className="text-sm text-muted-foreground">Billed by: {biller.full_name}</p>
           )}
         </CardHeader>
         <CardContent className="space-y-4">

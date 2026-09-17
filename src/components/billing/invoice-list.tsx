@@ -37,6 +37,7 @@ type Invoice = {
   grand_total: number;
   discount_total: number;
   customers: { name: string } | null;
+  profiles: { full_name: string } | null;
 };
 
 const ALL = "__all__";
@@ -157,6 +158,7 @@ export function InvoiceList() {
             <TableHead>Invoice</TableHead>
             <TableHead>Date</TableHead>
             <TableHead>Customer</TableHead>
+            <TableHead>Billed by</TableHead>
             <TableHead>Payment</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Total</TableHead>
@@ -166,7 +168,7 @@ export function InvoiceList() {
         <TableBody>
           {!isPending && invoices.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="text-center text-muted-foreground">
+              <TableCell colSpan={8} className="text-center text-muted-foreground">
                 No invoices found.
               </TableCell>
             </TableRow>
@@ -180,6 +182,7 @@ export function InvoiceList() {
               </TableCell>
               <TableCell>{new Date(inv.created_at).toLocaleString()}</TableCell>
               <TableCell>{inv.customers?.name ?? "Walk-in"}</TableCell>
+              <TableCell className="text-muted-foreground">{inv.profiles?.full_name ?? "—"}</TableCell>
               <TableCell className="capitalize">{inv.payment_mode}</TableCell>
               <TableCell>
                 <Badge variant={inv.status === "returned" ? "destructive" : "secondary"}>
