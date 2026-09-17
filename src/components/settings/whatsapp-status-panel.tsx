@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Unlink } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getWhatsAppStatus, getWhatsAppQr, getWhatsAppLogs } from "@/lib/actions/whatsapp-admin";
+import {
+  getWhatsAppStatus,
+  getWhatsAppQr,
+  getWhatsAppLogs,
+  disconnectWhatsApp,
+} from "@/lib/actions/whatsapp-admin";
 
 type Status = { status: "connected" | "disconnected"; qrAvailable: boolean } | null;
 type LogEntry = { time: string; message: string; extra?: unknown };
@@ -33,6 +39,21 @@ export function WhatsAppStatusPanel() {
       setLogs(data.logs);
       setQrDataUrl(data.qrDataUrl);
       setChecked(true);
+    });
+  }
+
+  function disconnect() {
+    startTransition(async () => {
+      try {
+        await disconnectWhatsApp();
+        toast.success("WhatsApp disconnected — scan a new QR to relink");
+        const data = await fetchWhatsAppData();
+        setStatus(data.status);
+        setLogs(data.logs);
+        setQrDataUrl(data.qrDataUrl);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to disconnect");
+      }
     });
   }
 
@@ -79,6 +100,18 @@ export function WhatsAppStatusPanel() {
               <Badge variant={status.status === "connected" ? "secondary" : "destructive"}>
                 {status.status}
               </Badge>
+              {status.status === "connected" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={disconnect}
+                  disabled={isPending}
+                  className="gap-1.5 text-muted-foreground"
+                >
+                  <Unlink className="size-3.5" />
+                  Disconnect
+                </Button>
+              )}
             </div>
 
             {status.status !== "connected" && qrDataUrl && (

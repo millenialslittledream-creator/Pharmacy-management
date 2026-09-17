@@ -36,7 +36,7 @@ export async function GET(request: Request) {
       .map((row) => `- ${row.name}: ${row.total_qty ?? 0} left (reorder at ${row.reorder_level})`);
     const message = `${org.name}: ${lowStock.length} medicine(s) low on stock:\n${lines.join("\n")}`;
 
-    await sendWhatsAppMessage(org.whatsapp_alert_number!, message);
+    await sendWhatsAppMessage(org.id, org.whatsapp_alert_number!, message);
     alertsSent += 1;
   }
 

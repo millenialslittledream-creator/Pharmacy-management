@@ -1,9 +1,25 @@
 # Pharrmasy WhatsApp service
 
-Standalone Node service that holds one WhatsApp session (via `@whiskeysockets/baileys`)
-and exposes a single authenticated endpoint the main app calls to send messages.
-It is deployed separately from the Next.js app because it needs an always-on
-process — Vercel functions cannot hold a persistent WhatsApp connection.
+Standalone Node service that holds **one WhatsApp session per organization**
+(via `@whiskeysockets/baileys`) and exposes authenticated endpoints the main
+app calls to send messages. It is deployed separately from the Next.js app
+because it needs an always-on process — Vercel functions cannot hold a
+persistent WhatsApp connection.
+
+Every request (`/status`, `/qr`, `/logs`, `/send`, `/logout`) takes an
+`orgId` (the pharmacy's `organizations.id` UUID) in addition to the shared
+`x-api-secret` header, and each org gets its own Baileys socket and its own
+`auth_info/<orgId>/` session folder on disk. Org A scanning a QR code only
+ever links Org A's number — it has no effect on any other org's connection.
+This one process can serve every pharmacy on the platform; you do not need a
+separate VM per org.
+
+**Upgrading from the old single-session version:** the service used to keep
+one global `auth_info/` session shared by every org. That global folder is
+no longer read — after deploying this version, whichever org was previously
+"connected" will show as disconnected and must re-scan its QR from
+Settings once (self-service, no VM access needed). You can delete the old
+top-level `auth_info/` folder on the VM; it's now dead weight.
 
 Railway dropped its free tier in 2023 (now ~$5/mo minimum), so this uses a free
 always-on VM instead. **Try Oracle Cloud first** (more generous specs); if VM
@@ -83,14 +99,30 @@ pm2 save
 pm2 startup   # run the command it prints, so the service survives a VM reboot
 ```
 
+### Updating an already-running VM to a new version of this service
+
+```bash
+cd ~/Pharmacy-management/whatsapp-service
+git pull
+npm install
+pm2 restart whatsapp
+rm -rf auth_info   # only needed the one time you upgrade to per-org sessions
+```
+
 ## 4. Scan the QR code
 
-Open `http://<public-ip>:3001/qr` in a browser. On the pharmacy's WhatsApp
+Don't hit the VM directly for this — each org scans its own QR from inside
+the app at **Settings** (CEO role only), which proxies to
+`/qr?orgId=<that org's id>` on this service. On the pharmacy's WhatsApp
 phone: Settings → Linked Devices → Link a Device, then scan it. Once linked,
-`http://<public-ip>:3001/status` reports `{"status":"connected"}` and the
-session persists in the `auth_info` folder across VM reboots (pm2 restarts the
-same process on the same disk — no ephemeral filesystem like on serverless
-platforms).
+the Settings page shows "connected" and the session persists in
+`auth_info/<orgId>/` across VM reboots (pm2 restarts the same process on the
+same disk — no ephemeral filesystem like on serverless platforms). A CEO can
+also hit "Disconnect" in Settings to unlink and re-scan (e.g. if the wrong
+phone was scanned) without needing VM access.
+
+(`http://<public-ip>:3001/qr?orgId=<uuid>` still works directly with the
+`x-api-secret` header, e.g. for debugging via curl.)
 
 `WHATSAPP_SERVICE_URL` (set in Vercel) is `http://<public-ip>:3001`.
 `WHATSAPP_SERVICE_SECRET` (set in Vercel) must exactly match the `API_SECRET`

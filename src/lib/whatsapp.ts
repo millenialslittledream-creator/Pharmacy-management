@@ -1,4 +1,5 @@
 export async function sendWhatsAppMessage(
+  orgId: string,
   phone: string,
   message: string,
   document?: { buffer: Buffer; fileName: string },
@@ -12,6 +13,7 @@ export async function sendWhatsAppMessage(
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-secret": secret },
       body: JSON.stringify({
+        orgId,
         phone,
         message,
         documentBase64: document?.buffer.toString("base64"),

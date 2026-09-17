@@ -2,19 +2,28 @@
 
 import { requireOrgId } from "@/lib/actions/require-org";
 
-async function callWhatsAppService(path: string) {
-  const { role } = await requireOrgId();
+async function callWhatsAppService(path: string, options?: { method?: "GET" | "POST" }) {
+  const { role, orgId } = await requireOrgId();
   if (role !== "ceo") throw new Error("Not authorized");
 
   const url = process.env.WHATSAPP_SERVICE_URL;
   const secret = process.env.WHATSAPP_SERVICE_SECRET;
   if (!url || !secret) return null;
 
-  const res = await fetch(`${url}${path}`, {
-    headers: { "x-api-secret": secret },
-    signal: AbortSignal.timeout(10000),
-    cache: "no-store",
-  });
+  const method = options?.method ?? "GET";
+  const res = await fetch(
+    method === "GET" ? `${url}${path}?orgId=${orgId}` : `${url}${path}`,
+    {
+      method,
+      headers: {
+        "x-api-secret": secret,
+        ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
+      },
+      ...(method === "POST" ? { body: JSON.stringify({ orgId }) } : {}),
+      signal: AbortSignal.timeout(10000),
+      cache: "no-store",
+    },
+  );
   if (!res.ok && res.status !== 404) throw new Error(`WhatsApp service error: ${res.status}`);
   return res.json();
 }
@@ -44,4 +53,8 @@ export async function getWhatsAppLogs() {
   } catch {
     return [];
   }
+}
+
+export async function disconnectWhatsApp() {
+  await callWhatsAppService("/logout", { method: "POST" });
 }

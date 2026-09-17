@@ -158,6 +158,7 @@ async function notifyInvoiceByWhatsApp(orgId: string, customerId: string, invoic
   const pdfBuffer = await generateInvoicePdf(invoice, items, org, customer, biller?.full_name ?? null);
 
   await sendWhatsAppMessage(
+    orgId,
     customer.phone,
     `${org.name}: Your bill ${invoice.invoice_no} for ₹${invoice.grand_total.toFixed(2)} is ready. Thank you for your purchase!`,
     { buffer: pdfBuffer, fileName: `${invoice.invoice_no}.pdf` },
