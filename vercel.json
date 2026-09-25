@@ -2,7 +2,7 @@
   "regions": ["bom1"],
   "crons": [
     {
-      "path": "/api/cron/low-stock-alert",
+      "path": "/api/cron/daily-alerts",
       "schedule": "0 9 * * *"
     }
   ]
