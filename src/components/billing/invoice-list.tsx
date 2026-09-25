@@ -37,13 +37,14 @@ type Invoice = {
   grand_total: number;
   discount_total: number;
   is_free: boolean;
+  edited_at: string | null;
   customers: { name: string } | null;
-  profiles: { full_name: string } | null;
+  biller: { full_name: string } | null;
 };
 
 const ALL = "__all__";
 
-export function InvoiceList() {
+export function InvoiceList({ canEdit }: { canEdit: boolean }) {
   const [filters, setFilters] = useState<InvoiceFilters>({});
   const [customerName, setCustomerName] = useState("");
   const [page, setPage] = useState(1);
@@ -183,19 +184,25 @@ export function InvoiceList() {
               </TableCell>
               <TableCell>{new Date(inv.created_at).toLocaleString()}</TableCell>
               <TableCell>{inv.customers?.name ?? "Walk-in"}</TableCell>
-              <TableCell className="text-muted-foreground">{inv.profiles?.full_name ?? "—"}</TableCell>
+              <TableCell className="text-muted-foreground">{inv.biller?.full_name ?? "—"}</TableCell>
               <TableCell className="capitalize">{inv.payment_mode}</TableCell>
               <TableCell className="flex flex-wrap gap-1">
                 <Badge variant={inv.status === "returned" ? "destructive" : "secondary"}>
                   {inv.status}
                 </Badge>
                 {inv.is_free && <Badge variant="outline">Free</Badge>}
+                {inv.edited_at && <Badge variant="outline">Edited</Badge>}
               </TableCell>
               <TableCell className="text-right">{inv.grand_total.toFixed(2)}</TableCell>
               <TableCell className="flex justify-end gap-2">
                 <Button asChild variant="outline" size="sm">
                   <Link href={`/billing/${inv.id}`}>View</Link>
                 </Button>
+                {canEdit && inv.status === "paid" && (
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={`/billing/${inv.id}/edit`}>Edit</Link>
+                  </Button>
+                )}
                 {inv.status === "paid" && (
                   <Button variant="outline" size="sm" onClick={() => handleReturn(inv.id)}>
                     Return

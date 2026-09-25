@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getInvoiceDetail } from "@/lib/actions/billing";
+import { requireOrgId } from "@/lib/actions/require-org";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +13,7 @@ export default async function InvoiceDetailPage({
   params: Promise<{ invoiceId: string }>;
 }) {
   const { invoiceId } = await params;
+  const { role } = await requireOrgId();
 
   let detail: Awaited<ReturnType<typeof getInvoiceDetail>>;
   try {
@@ -28,8 +30,10 @@ export default async function InvoiceDetailPage({
     address: string | null;
     phone: string | null;
   } | null;
-  const biller = invoice.profiles as unknown as { full_name: string } | null;
+  const biller = invoice.biller as unknown as { full_name: string } | null;
+  const editor = invoice.editor as unknown as { full_name: string } | null;
   const hasTax = invoice.cgst_total > 0 || invoice.sgst_total > 0;
+  const canEdit = (role === "ceo" || role === "pharmacist") && invoice.status === "paid";
 
   return (
     <div className="space-y-4">
@@ -39,6 +43,11 @@ export default async function InvoiceDetailPage({
           <Button asChild variant="outline">
             <Link href="/billing">New sale</Link>
           </Button>
+          {canEdit && (
+            <Button asChild variant="outline">
+              <Link href={`/billing/${invoiceId}/edit`}>Edit</Link>
+            </Button>
+          )}
           <PrintButton />
         </div>
       </div>
@@ -71,6 +80,11 @@ export default async function InvoiceDetailPage({
           )}
           {biller?.full_name && (
             <p className="text-sm text-muted-foreground">Billed by: {biller.full_name}</p>
+          )}
+          {invoice.edited_at && (
+            <p className="text-sm text-muted-foreground">
+              Edited by {editor?.full_name ?? "—"} on {new Date(invoice.edited_at).toLocaleString()}
+            </p>
           )}
         </CardHeader>
         <CardContent className="space-y-4">

@@ -16,7 +16,7 @@ export default async function BillingPage() {
           <CardTitle>Invoices</CardTitle>
         </CardHeader>
         <CardContent>
-          <InvoiceList />
+          <InvoiceList canEdit={role === "ceo" || role === "pharmacist"} />
         </CardContent>
       </Card>
     </div>

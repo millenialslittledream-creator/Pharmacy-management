@@ -172,6 +172,8 @@ export type Database = {
           created_by: string | null
           customer_id: string | null
           discount_total: number
+          edited_at: string | null
+          edited_by: string | null
           grand_total: number
           id: string
           invoice_no: string
@@ -189,6 +191,8 @@ export type Database = {
           created_by?: string | null
           customer_id?: string | null
           discount_total?: number
+          edited_at?: string | null
+          edited_by?: string | null
           grand_total?: number
           id?: string
           invoice_no: string
@@ -206,6 +210,8 @@ export type Database = {
           created_by?: string | null
           customer_id?: string | null
           discount_total?: number
+          edited_at?: string | null
+          edited_by?: string | null
           grand_total?: number
           id?: string
           invoice_no?: string
@@ -221,6 +227,13 @@ export type Database = {
           {
             foreignKeyName: "invoices_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_edited_by_fkey"
+            columns: ["edited_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -715,6 +728,14 @@ export type Database = {
       dashboard_alerts: {
         Args: Record<PropertyKey, never>
         Returns: { low_stock_count: number; expiring_soon_count: number; outstanding_total: number }[]
+      }
+      edit_invoice: {
+        Args: {
+          p_discount_total: number
+          p_invoice_id: string
+          p_items: Json
+        }
+        Returns: undefined
       }
       get_invite_by_token: {
         Args: { p_token: string }

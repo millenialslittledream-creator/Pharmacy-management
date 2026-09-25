@@ -77,7 +77,7 @@ export async function getInvoiceDetail(invoiceId: string) {
   const { data: invoice, error: invoiceError } = await supabase
     .from("invoices")
     .select(
-      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, taxable_value, cgst_total, sgst_total, is_free, customers(name, phone), organizations(name, gstin, address, phone), profiles(full_name)",
+      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, taxable_value, cgst_total, sgst_total, is_free, edited_at, customers(name, phone), organizations(name, gstin, address, phone), biller:profiles!invoices_created_by_fkey(full_name), editor:profiles!invoices_edited_by_fkey(full_name)",
     )
     .eq("id", invoiceId)
     .single();
@@ -86,10 +86,20 @@ export async function getInvoiceDetail(invoiceId: string) {
   const { data: items, error: itemsError } = await supabase
     .from("invoice_items")
     .select(
-      "id, qty, unit_rate, discount_pct, line_total, tax_rate, tax_amount, medicine_batches(batch_no, medicines(name, unit, hsn_code))",
+      "id, medicine_batch_id, qty, unit_rate, discount_pct, line_total, tax_rate, tax_amount, medicine_batches(batch_no, medicines(name, unit, hsn_code))",
     )
     .eq("invoice_id", invoiceId);
   if (itemsError) throw itemsError;
+
+  return { invoice, items };
+}
+
+export async function getInvoiceForEdit(invoiceId: string) {
+  const { role } = await requireOrgId();
+  if (role !== "ceo" && role !== "pharmacist") throw new Error("Not authorized to edit invoices");
+
+  const { invoice, items } = await getInvoiceDetail(invoiceId);
+  if (invoice.status === "returned") throw new Error("Cannot edit a returned invoice");
 
   return { invoice, items };
 }
@@ -155,7 +165,7 @@ async function notifyInvoiceByWhatsApp(orgId: string, customerId: string, invoic
   if (!customer?.phone) return;
 
   const { invoice, items } = await getInvoiceDetail(invoiceId);
-  const biller = invoice.profiles as unknown as { full_name: string } | null;
+  const biller = invoice.biller as unknown as { full_name: string } | null;
 
   const pdfBuffer = await generateInvoicePdf(invoice, items, org, customer, biller?.full_name ?? null);
 
@@ -189,7 +199,7 @@ export async function listInvoices(filters: InvoiceFilters, page = 1, pageSize =
   let query = supabase
     .from("invoices")
     .select(
-      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, is_free, customers(name), profiles(full_name)",
+      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, is_free, edited_at, customers(name), biller:profiles!invoices_created_by_fkey(full_name)",
       { count: "exact" },
     )
     .order("created_at", { ascending: false });
@@ -223,6 +233,33 @@ export async function returnInvoice(invoiceId: string) {
   const { error } = await supabase.rpc("return_invoice", { p_invoice_id: invoiceId });
   if (error) throw error;
   revalidatePath("/billing");
+  revalidatePath("/inventory");
+  updateTag(`dashboard-${orgId}`);
+}
+
+export async function editInvoice(
+  invoiceId: string,
+  input: { items: InvoiceLineInput[]; discountTotal: number },
+) {
+  const { supabase, orgId, role } = await requireOrgId();
+  if (role !== "ceo" && role !== "pharmacist") throw new Error("Not authorized to edit invoices");
+
+  const { error } = await supabase.rpc("edit_invoice", {
+    p_invoice_id: invoiceId,
+    p_discount_total: input.discountTotal,
+    p_items: input.items.map((item) => ({
+      medicine_batch_id: item.medicine_batch_id,
+      qty: item.qty,
+      unit_rate: item.unit_rate,
+      discount_pct: item.discount_pct ?? 0,
+      prescribing_doctor: item.prescribing_doctor || null,
+      prescription_ref: item.prescription_ref || null,
+    })),
+  });
+
+  if (error) throw error;
+  revalidatePath("/billing");
+  revalidatePath(`/billing/${invoiceId}`);
   revalidatePath("/inventory");
   updateTag(`dashboard-${orgId}`);
 }
