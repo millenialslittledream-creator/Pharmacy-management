@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { sendWhatsAppMessage, isWhatsAppServiceReachable } from "@/lib/whatsapp";
 
 // Expiring-soon window matches the 90-day threshold already used by the
 // "Expiring Soon" inventory tab and the dashboard_alerts RPC.
@@ -27,6 +27,18 @@ export async function GET(request: Request) {
   let whatsappAlertsSent = 0;
 
   for (const org of orgs ?? []) {
+    const { data: existingUnread, error: existingError } = await supabase
+      .from("notifications")
+      .select("type, medicine_id")
+      .eq("org_id", org.id)
+      .is("read_at", null);
+    if (existingError) throw existingError;
+    const existingKeys = new Set(
+      (existingUnread ?? []).map((n) => `${n.type}:${n.medicine_id}`),
+    );
+
+    const rows: { org_id: string; type: "low_stock" | "expiring_soon" | "whatsapp_down"; medicine_id: string | null; title: string; message: string }[] = [];
+
     const { data: stock, error: stockError } = await supabase
       .from("medicine_stock_summary")
       .select("medicine_id, name, total_qty, reorder_level, nearest_expiry")
@@ -40,36 +52,43 @@ export async function GET(request: Request) {
       (row) => (row.total_qty ?? 0) > 0 && row.nearest_expiry && row.nearest_expiry <= expiryCutoffStr,
     );
 
-    if (lowStock.length === 0 && expiringSoon.length === 0) continue;
-
-    const { data: existingUnread, error: existingError } = await supabase
-      .from("notifications")
-      .select("type, medicine_id")
-      .eq("org_id", org.id)
-      .is("read_at", null);
-    if (existingError) throw existingError;
-    const existingKeys = new Set((existingUnread ?? []).map((n) => `${n.type}:${n.medicine_id}`));
-
-    const rows = [
-      ...lowStock
-        .filter((row) => row.medicine_id && !existingKeys.has(`low_stock:${row.medicine_id}`))
-        .map((row) => ({
+    for (const row of lowStock) {
+      if (row.medicine_id && !existingKeys.has(`low_stock:${row.medicine_id}`)) {
+        rows.push({
           org_id: org.id,
-          type: "low_stock" as const,
+          type: "low_stock",
           medicine_id: row.medicine_id,
           title: `Low stock: ${row.name}`,
           message: `${row.total_qty ?? 0} left, reorder level is ${row.reorder_level}.`,
-        })),
-      ...expiringSoon
-        .filter((row) => row.medicine_id && !existingKeys.has(`expiring_soon:${row.medicine_id}`))
-        .map((row) => ({
+        });
+      }
+    }
+    for (const row of expiringSoon) {
+      if (row.medicine_id && !existingKeys.has(`expiring_soon:${row.medicine_id}`)) {
+        rows.push({
           org_id: org.id,
-          type: "expiring_soon" as const,
+          type: "expiring_soon",
           medicine_id: row.medicine_id,
           title: `Expiring soon: ${row.name}`,
           message: `Nearest batch expires ${row.nearest_expiry} (${row.total_qty ?? 0} in stock).`,
-        })),
-    ];
+        });
+      }
+    }
+
+    // Only alerts when the service itself is unreachable (VM down, process
+    // crashed) — a normal "not yet linked" status is not an outage.
+    if (org.whatsapp_enabled && !existingKeys.has("whatsapp_down:null")) {
+      const reachable = await isWhatsAppServiceReachable(org.id);
+      if (!reachable) {
+        rows.push({
+          org_id: org.id,
+          type: "whatsapp_down",
+          medicine_id: null,
+          title: "WhatsApp service unreachable",
+          message: `${org.name}: could not reach the WhatsApp service — invoice receipts and alerts are not being sent.`,
+        });
+      }
+    }
 
     if (rows.length > 0) {
       const { error: insertError } = await supabase.from("notifications").insert(rows);

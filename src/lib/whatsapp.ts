@@ -1,3 +1,22 @@
+// Distinguishes "the whatsapp-service VM/process is unreachable" (a real
+// outage worth alerting on) from "connected: false" (normal — nobody has
+// scanned a QR yet, not an outage).
+export async function isWhatsAppServiceReachable(orgId: string): Promise<boolean> {
+  const url = process.env.WHATSAPP_SERVICE_URL;
+  const secret = process.env.WHATSAPP_SERVICE_SECRET;
+  if (!url || !secret) return true; // not configured — nothing to alert on
+
+  try {
+    const res = await fetch(`${url}/status?orgId=${orgId}`, {
+      headers: { "x-api-secret": secret },
+      signal: AbortSignal.timeout(10000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function sendWhatsAppMessage(
   orgId: string,
   phone: string,

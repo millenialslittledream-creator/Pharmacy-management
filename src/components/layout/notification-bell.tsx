@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Bell, PackageX, CalendarClock } from "lucide-react";
+import { Bell, PackageX, CalendarClock, WifiOff } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -116,6 +116,8 @@ export function NotificationBell() {
             >
               {n.type === "expiring_soon" ? (
                 <CalendarClock className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              ) : n.type === "whatsapp_down" ? (
+                <WifiOff className="mt-0.5 size-4 shrink-0 text-destructive" />
               ) : (
                 <PackageX className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
               )}
