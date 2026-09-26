@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -35,6 +36,75 @@ const HEADER_ALIASES: Record<string, keyof BulkImportRow> = {
   "pack size": "pack_size",
   "supplier name": "supplier_name",
 };
+
+const TEMPLATE_HEADERS = [
+  "Item Name",
+  "Generic Name",
+  "Manufacturer",
+  "HSN Code",
+  "Batch No",
+  "Mfg Date",
+  "Expiry Date",
+  "MRP",
+  "Purchase Rate",
+  "Sale Rate",
+  "Qty",
+  "Unit",
+  "Pack Size",
+  "Supplier Name",
+];
+
+const TEMPLATE_SAMPLE_ROWS = [
+  [
+    "Paracetamol 500mg",
+    "Paracetamol",
+    "ABC Pharma",
+    "30049099",
+    "PCM001",
+    "2026-01-15",
+    "2027-06-30",
+    "15.00",
+    "8.50",
+    "12.00",
+    "500",
+    "Strip",
+    "10x10",
+    "MedSupply Co",
+  ],
+  [
+    "Amoxicillin 250mg",
+    "Amoxicillin",
+    "XYZ Labs",
+    "30041020",
+    "AMX045",
+    "2026-02-01",
+    "2027-08-15",
+    "45.00",
+    "28.00",
+    "40.00",
+    "200",
+    "Strip",
+    "10x10",
+    "HealthDistributors",
+  ],
+];
+
+function csvEscape(value: string): string {
+  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+function downloadTemplate() {
+  const lines = [TEMPLATE_HEADERS, ...TEMPLATE_SAMPLE_ROWS].map((row) =>
+    row.map(csvEscape).join(","),
+  );
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "medicine-import-template.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 function toIsoDate(value: unknown): string {
   if (value instanceof Date) {
@@ -116,6 +186,10 @@ export function BulkImport() {
           Expiry Date, MRP, Purchase Rate, Sale Rate, Qty, Unit, Pack Size, Supplier Name. Dates as
           YYYY-MM-DD.
         </p>
+        <Button type="button" variant="outline" size="sm" onClick={downloadTemplate} className="gap-2">
+          <Download className="size-4" />
+          Download CSV template
+        </Button>
         <Input
           type="file"
           accept=".csv,.xlsx,.xls"
