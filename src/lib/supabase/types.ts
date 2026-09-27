@@ -167,6 +167,7 @@ export type Database = {
       }
       invoices: {
         Row: {
+          amount_paid: number
           cgst_total: number
           created_at: string
           created_by: string | null
@@ -178,14 +179,17 @@ export type Database = {
           id: string
           invoice_no: string
           is_free: boolean
+          is_pending: boolean
           org_id: string
           parent_invoice_id: string | null
+          payment_due_at: string | null
           payment_mode: Database["public"]["Enums"]["payment_mode"]
           sgst_total: number
           status: Database["public"]["Enums"]["invoice_status"]
           taxable_value: number
         }
         Insert: {
+          amount_paid?: number
           cgst_total?: number
           created_at?: string
           created_by?: string | null
@@ -199,12 +203,14 @@ export type Database = {
           is_free?: boolean
           org_id: string
           parent_invoice_id?: string | null
+          payment_due_at?: string | null
           payment_mode?: Database["public"]["Enums"]["payment_mode"]
           sgst_total?: number
           status?: Database["public"]["Enums"]["invoice_status"]
           taxable_value?: number
         }
         Update: {
+          amount_paid?: number
           cgst_total?: number
           created_at?: string
           created_by?: string | null
@@ -218,6 +224,7 @@ export type Database = {
           is_free?: boolean
           org_id?: string
           parent_invoice_id?: string | null
+          payment_due_at?: string | null
           payment_mode?: Database["public"]["Enums"]["payment_mode"]
           sgst_total?: number
           status?: Database["public"]["Enums"]["invoice_status"]
@@ -404,6 +411,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          invoice_id: string | null
           medicine_id: string | null
           message: string
           org_id: string
@@ -414,6 +422,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          invoice_id?: string | null
           medicine_id?: string | null
           message: string
           org_id: string
@@ -424,6 +433,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          invoice_id?: string | null
           medicine_id?: string | null
           message?: string
           org_id?: string
@@ -432,6 +442,20 @@ export type Database = {
           type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "notifications_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_drug_register"
+            referencedColumns: ["invoice_id"]
+          },
           {
             foreignKeyName: "notifications_medicine_id_fkey"
             columns: ["medicine_id"]
@@ -770,12 +794,14 @@ export type Database = {
       }
       create_invoice: {
         Args: {
+          p_amount_paid?: number
           p_customer_id: string | null
           p_discount_total: number
           p_invoice_no: string
           p_is_free?: boolean
           p_items: Json
           p_org_id: string
+          p_payment_due_at?: string
           p_payment_mode: Database["public"]["Enums"]["payment_mode"]
         }
         Returns: string

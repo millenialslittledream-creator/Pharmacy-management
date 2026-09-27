@@ -144,6 +144,7 @@ export function AddMedicineDialog() {
                   <SelectItem value="H">Schedule H</SelectItem>
                   <SelectItem value="H1">Schedule H1</SelectItem>
                   <SelectItem value="X">Schedule X</SelectItem>
+                  <SelectItem value="Others">Others</SelectItem>
                 </SelectContent>
               </Select>
             </div>

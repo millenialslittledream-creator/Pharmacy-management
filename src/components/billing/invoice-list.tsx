@@ -38,6 +38,8 @@ type Invoice = {
   discount_total: number;
   is_free: boolean;
   edited_at: string | null;
+  amount_paid: number;
+  is_pending: boolean;
   customers: { name: string } | null;
   biller: { full_name: string } | null;
 };
@@ -152,6 +154,21 @@ export function InvoiceList({ canEdit }: { canEdit: boolean }) {
             </SelectContent>
           </Select>
         </div>
+        <div className="w-40">
+          <Label className="mb-1.5 block text-xs">Pending amount</Label>
+          <Select
+            onValueChange={(v) => updateFilter({ pendingOnly: v === ALL ? undefined : true })}
+            defaultValue={ALL}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All</SelectItem>
+              <SelectItem value="pending">Pending only</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Table>
@@ -192,8 +209,16 @@ export function InvoiceList({ canEdit }: { canEdit: boolean }) {
                 </Badge>
                 {inv.is_free && <Badge variant="outline">Free</Badge>}
                 {inv.edited_at && <Badge variant="outline">Edited</Badge>}
+                {inv.is_pending && <Badge variant="destructive">Pending</Badge>}
               </TableCell>
-              <TableCell className="text-right">{inv.grand_total.toFixed(2)}</TableCell>
+              <TableCell className="text-right">
+                {inv.grand_total.toFixed(2)}
+                {inv.is_pending && (
+                  <div className="text-xs text-destructive">
+                    {(inv.grand_total - inv.amount_paid).toFixed(2)} pending
+                  </div>
+                )}
+              </TableCell>
               <TableCell className="flex justify-end gap-2">
                 <Button asChild variant="outline" size="sm">
                   <Link href={`/billing/${inv.id}`}>View</Link>

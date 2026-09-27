@@ -71,6 +71,8 @@ export function PosForm({
   const [leadPhone, setLeadPhone] = useState("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("cash");
   const [billDiscount, setBillDiscount] = useState("0");
+  const [amountPaidOverride, setAmountPaidOverride] = useState("");
+  const [paymentDueAt, setPaymentDueAt] = useState("");
   const [isPending, startTransition] = useTransition();
 
   async function handleMedicineSelect(medicine: MedicineOption) {
@@ -160,10 +162,16 @@ export function PosForm({
   );
   const discount = Number(billDiscount) || 0;
   const grandTotal = Math.max(0, subtotal - discount);
+  const amountPaid = amountPaidOverride.trim() === "" ? grandTotal : Math.max(0, Number(amountPaidOverride) || 0);
+  const pendingAmount = Math.max(0, grandTotal - amountPaid);
 
   function handleSubmit(isFree = false) {
     if (cart.length === 0) {
       toast.error("Add at least one item to the bill");
+      return;
+    }
+    if (!isFree && pendingAmount > 0 && !customer && !leadName.trim()) {
+      toast.error("Select or add a customer to bill the pending amount to");
       return;
     }
     const items: InvoiceLineInput[] = cart.map((line) => ({
@@ -189,6 +197,8 @@ export function PosForm({
           discountTotal: isFree ? 0 : discount,
           items,
           isFree,
+          amountPaid: isFree ? undefined : amountPaid,
+          paymentDueAt: !isFree && pendingAmount > 0 && paymentDueAt ? new Date(paymentDueAt).toISOString() : undefined,
         });
         toast.success(isFree ? "Free invoice created" : "Invoice created");
         router.push(`/billing/${invoiceId}`);
@@ -375,6 +385,36 @@ export function PosForm({
             <Label>Bill discount (flat)</Label>
             <Input type="number" value={billDiscount} onChange={(e) => setBillDiscount(e.target.value)} />
           </div>
+          <div className="space-y-1.5">
+            <Label>Amount received now</Label>
+            <Input
+              type="number"
+              value={amountPaidOverride}
+              placeholder={grandTotal.toFixed(2)}
+              onChange={(e) => setAmountPaidOverride(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave blank to mark as fully paid. Enter a smaller amount (or 0) for a partial or
+              pending payment.
+            </p>
+          </div>
+          {pendingAmount > 0 && (
+            <div className="space-y-1.5 rounded-lg border border-dashed p-3">
+              <p className="text-sm font-medium text-destructive">
+                ₹{pendingAmount.toFixed(2)} pending
+                {!customer && !leadName.trim() && " — select a customer to bill it to"}
+              </p>
+              <Label htmlFor="payment-due-at" className="text-xs">
+                Payment due by (optional)
+              </Label>
+              <Input
+                id="payment-due-at"
+                type="datetime-local"
+                value={paymentDueAt}
+                onChange={(e) => setPaymentDueAt(e.target.value)}
+              />
+            </div>
+          )}
           <div className="space-y-1 border-t pt-3 text-sm">
             <div className="flex justify-between">
               <span>Subtotal</span>

@@ -61,6 +61,7 @@ export default async function InvoiceDetailPage({
                 {invoice.status}
               </Badge>
               {invoice.is_free && <Badge variant="outline">Free</Badge>}
+              {invoice.is_pending && <Badge variant="destructive">Pending</Badge>}
             </div>
           </div>
           {(org?.address || org?.phone || org?.gstin) && (
@@ -91,8 +92,10 @@ export default async function InvoiceDetailPage({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="py-2">S.No</th>
                 <th className="py-2">Medicine</th>
                 <th className="py-2">HSN</th>
+                <th className="py-2">Expiry</th>
                 <th className="py-2 text-right">Qty</th>
                 <th className="py-2 text-right">Rate</th>
                 <th className="py-2 text-right">Disc %</th>
@@ -102,13 +105,15 @@ export default async function InvoiceDetailPage({
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => {
+              {items.map((item, index) => {
                 const batch = item.medicine_batches as unknown as {
                   batch_no: string;
+                  expiry_date: string | null;
                   medicines: { name: string; unit: string | null; hsn_code: string | null } | null;
                 } | null;
                 return (
                   <tr key={item.id} className="border-b last:border-0">
+                    <td className="py-2 text-muted-foreground">{index + 1}</td>
                     <td className="py-2">
                       {batch?.medicines?.name ?? "—"}
                       <span className="ml-1 text-xs text-muted-foreground">{batch?.batch_no}</span>
@@ -116,6 +121,7 @@ export default async function InvoiceDetailPage({
                     <td className="py-2 text-xs text-muted-foreground">
                       {batch?.medicines?.hsn_code ?? "—"}
                     </td>
+                    <td className="py-2 text-xs text-muted-foreground">{batch?.expiry_date ?? "—"}</td>
                     <td className="py-2 text-right">{item.qty}</td>
                     <td className="py-2 text-right">{item.unit_rate.toFixed(2)}</td>
                     <td className="py-2 text-right">{item.discount_pct}</td>
@@ -161,6 +167,24 @@ export default async function InvoiceDetailPage({
               <span>Payment mode</span>
               <span className="capitalize">{invoice.payment_mode}</span>
             </div>
+            {invoice.grand_total !== invoice.amount_paid && (
+              <>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Amount paid</span>
+                  <span>{invoice.amount_paid.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-semibold text-destructive">
+                  <span>Pending</span>
+                  <span>{(invoice.grand_total - invoice.amount_paid).toFixed(2)}</span>
+                </div>
+                {invoice.payment_due_at && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Due by</span>
+                    <span>{new Date(invoice.payment_due_at).toLocaleString()}</span>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </CardContent>
       </Card>

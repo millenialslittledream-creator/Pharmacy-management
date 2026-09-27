@@ -77,7 +77,7 @@ export async function getInvoiceDetail(invoiceId: string) {
   const { data: invoice, error: invoiceError } = await supabase
     .from("invoices")
     .select(
-      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, taxable_value, cgst_total, sgst_total, is_free, edited_at, customers(name, phone), organizations(name, gstin, address, phone), biller:profiles!invoices_created_by_fkey(full_name), editor:profiles!invoices_edited_by_fkey(full_name)",
+      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, taxable_value, cgst_total, sgst_total, is_free, edited_at, amount_paid, payment_due_at, is_pending, customers(name, phone), organizations(name, gstin, address, phone), biller:profiles!invoices_created_by_fkey(full_name), editor:profiles!invoices_edited_by_fkey(full_name)",
     )
     .eq("id", invoiceId)
     .single();
@@ -86,7 +86,7 @@ export async function getInvoiceDetail(invoiceId: string) {
   const { data: items, error: itemsError } = await supabase
     .from("invoice_items")
     .select(
-      "id, medicine_batch_id, qty, unit_rate, discount_pct, line_total, tax_rate, tax_amount, medicine_batches(batch_no, medicines(name, unit, hsn_code))",
+      "id, medicine_batch_id, qty, unit_rate, discount_pct, line_total, tax_rate, tax_amount, medicine_batches(batch_no, expiry_date, medicines(name, unit, hsn_code))",
     )
     .eq("invoice_id", invoiceId);
   if (itemsError) throw itemsError;
@@ -115,6 +115,8 @@ export async function submitInvoice(input: {
   discountTotal: number;
   items: InvoiceLineInput[];
   isFree?: boolean;
+  amountPaid?: number;
+  paymentDueAt?: string;
 }) {
   const { supabase, orgId, invoicePrefix } = await requireOrgId();
 
@@ -133,6 +135,8 @@ export async function submitInvoice(input: {
       prescription_ref: item.prescription_ref || null,
     })),
     p_is_free: input.isFree ?? false,
+    p_amount_paid: input.amountPaid,
+    p_payment_due_at: input.paymentDueAt || undefined,
   });
 
   if (error) throw error;
@@ -169,9 +173,12 @@ async function notifyInvoiceByWhatsApp(orgId: string, customerId: string, invoic
 
   const pdfBuffer = await generateInvoicePdf(invoice, items, org, customer, biller?.full_name ?? null);
 
+  const pendingAmount = invoice.grand_total - invoice.amount_paid;
   const billLine = invoice.is_free
     ? `${org.name}: Your free bill ${invoice.invoice_no} is ready. Thank you!`
-    : `${org.name}: Your bill ${invoice.invoice_no} for ₹${invoice.grand_total.toFixed(2)} is ready. Thank you for your purchase!`;
+    : pendingAmount > 0
+      ? `${org.name}: Your bill ${invoice.invoice_no} for ₹${invoice.grand_total.toFixed(2)} is ready. You paid ₹${invoice.amount_paid.toFixed(2)} — ₹${pendingAmount.toFixed(2)} pending${invoice.payment_due_at ? ` by ${new Date(invoice.payment_due_at).toLocaleDateString()}` : ""}.`
+      : `${org.name}: Your bill ${invoice.invoice_no} for ₹${invoice.grand_total.toFixed(2)} is ready. Thank you for your purchase!`;
 
   await sendWhatsAppMessage(
     orgId,
@@ -187,6 +194,7 @@ export type InvoiceFilters = {
   customerName?: string;
   paymentMode?: PaymentMode;
   status?: Database["public"]["Enums"]["invoice_status"];
+  pendingOnly?: boolean;
 };
 
 export async function listInvoices(filters: InvoiceFilters, page = 1, pageSize = 20) {
@@ -199,7 +207,7 @@ export async function listInvoices(filters: InvoiceFilters, page = 1, pageSize =
   let query = supabase
     .from("invoices")
     .select(
-      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, is_free, edited_at, customers(name), biller:profiles!invoices_created_by_fkey(full_name)",
+      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, is_free, edited_at, amount_paid, payment_due_at, is_pending, customers(name), biller:profiles!invoices_created_by_fkey(full_name)",
       { count: "exact" },
     )
     .order("created_at", { ascending: false });
@@ -208,6 +216,7 @@ export async function listInvoices(filters: InvoiceFilters, page = 1, pageSize =
   if (filters.to) query = query.lte("created_at", filters.to);
   if (filters.paymentMode) query = query.eq("payment_mode", filters.paymentMode);
   if (filters.status) query = query.eq("status", filters.status);
+  if (filters.pendingOnly) query = query.eq("is_pending", true);
 
   if (hasNameFilter) {
     const { data, error } = await query.limit(500);

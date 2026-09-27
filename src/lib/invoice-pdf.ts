@@ -9,6 +9,7 @@ type InvoiceItem = {
   tax_amount: number;
   medicine_batches: {
     batch_no: string;
+    expiry_date: string | null;
     medicines: { name: string; unit: string | null; hsn_code: string | null } | null;
   } | null;
 };
@@ -94,13 +95,15 @@ export async function generateInvoicePdf(
 
   doc.moveDown(1);
 
-  const col = { name: 40, hsn: 215, qty: 270, rate: 310, disc: 360, taxable: 400, tax: 450, total: 505 };
-  const colW = { name: 170, hsn: 50, qty: 35, rate: 45, disc: 35, taxable: 45, tax: 50, total: 50 };
+  const col = { sno: 40, name: 58, hsn: 168, expiry: 200, qty: 246, rate: 272, disc: 312, taxable: 344, tax: 450, total: 505 };
+  const colW = { sno: 16, name: 108, hsn: 30, expiry: 44, qty: 24, rate: 38, disc: 30, taxable: 40, tax: 50, total: 50 };
 
   const tableTop = doc.y;
   doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(7.5);
+  doc.text("#", col.sno, tableTop, { width: colW.sno });
   doc.text("MEDICINE", col.name, tableTop);
   doc.text("HSN", col.hsn, tableTop, { width: colW.hsn });
+  doc.text("EXPIRY", col.expiry, tableTop, { width: colW.expiry });
   doc.text("QTY", col.qty, tableTop, { width: colW.qty, align: "right" });
   doc.text("RATE", col.rate, tableTop, { width: colW.rate, align: "right" });
   doc.text("DISC%", col.disc, tableTop, { width: colW.disc, align: "right" });
@@ -116,12 +119,16 @@ export async function generateInvoicePdf(
     .stroke();
 
   let y = tableTop + 20;
-  for (const item of items) {
+  items.forEach((item, index) => {
     const name = item.medicine_batches?.medicines?.name ?? "—";
     const hsn = item.medicine_batches?.medicines?.hsn_code ?? "—";
-    doc.fillColor("#111").font("Helvetica").fontSize(8.5);
+    const expiry = item.medicine_batches?.expiry_date ?? "—";
+    doc.fillColor(GRAY).font("Helvetica").fontSize(8.5);
+    doc.text(String(index + 1), col.sno, y, { width: colW.sno });
+    doc.fillColor("#111");
     doc.text(name, col.name, y, { width: colW.name });
     doc.fillColor(GRAY).fontSize(8).text(hsn, col.hsn, y, { width: colW.hsn });
+    doc.text(expiry, col.expiry, y, { width: colW.expiry });
     doc.fillColor("#111").fontSize(8.5);
     doc.text(String(item.qty), col.qty, y, { width: colW.qty, align: "right" });
     doc.text(item.unit_rate.toFixed(2), col.rate, y, { width: colW.rate, align: "right" });
@@ -139,7 +146,7 @@ export async function generateInvoicePdf(
     doc.fillColor("#111").font("Helvetica-Bold").fontSize(8.5);
     doc.text((item.line_total + item.tax_amount).toFixed(2), col.total, y, { width: colW.total, align: "right" });
     y += 18;
-  }
+  });
 
   doc.moveTo(LEFT, y).lineTo(RIGHT, y).strokeColor(LIGHT_RULE).lineWidth(1).stroke();
   y += 12;

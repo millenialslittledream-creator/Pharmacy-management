@@ -6,6 +6,15 @@ import { sendWhatsAppMessage, isWhatsAppServiceReachable } from "@/lib/whatsapp"
 // "Expiring Soon" inventory tab and the dashboard_alerts RPC.
 const EXPIRING_SOON_DAYS = 90;
 
+type NotificationRow = {
+  org_id: string;
+  type: "low_stock" | "expiring_soon" | "whatsapp_down" | "payment_overdue";
+  medicine_id: string | null;
+  invoice_id: string | null;
+  title: string;
+  message: string;
+};
+
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -22,6 +31,7 @@ export async function GET(request: Request) {
   const expiryCutoff = new Date();
   expiryCutoff.setDate(expiryCutoff.getDate() + EXPIRING_SOON_DAYS);
   const expiryCutoffStr = expiryCutoff.toISOString().slice(0, 10);
+  const nowIso = new Date().toISOString();
 
   let notificationsCreated = 0;
   let whatsappAlertsSent = 0;
@@ -29,15 +39,15 @@ export async function GET(request: Request) {
   for (const org of orgs ?? []) {
     const { data: existingUnread, error: existingError } = await supabase
       .from("notifications")
-      .select("type, medicine_id")
+      .select("type, medicine_id, invoice_id")
       .eq("org_id", org.id)
       .is("read_at", null);
     if (existingError) throw existingError;
     const existingKeys = new Set(
-      (existingUnread ?? []).map((n) => `${n.type}:${n.medicine_id}`),
+      (existingUnread ?? []).map((n) => `${n.type}:${n.medicine_id ?? ""}:${n.invoice_id ?? ""}`),
     );
 
-    const rows: { org_id: string; type: "low_stock" | "expiring_soon" | "whatsapp_down"; medicine_id: string | null; title: string; message: string }[] = [];
+    const rows: NotificationRow[] = [];
 
     const { data: stock, error: stockError } = await supabase
       .from("medicine_stock_summary")
@@ -53,22 +63,24 @@ export async function GET(request: Request) {
     );
 
     for (const row of lowStock) {
-      if (row.medicine_id && !existingKeys.has(`low_stock:${row.medicine_id}`)) {
+      if (row.medicine_id && !existingKeys.has(`low_stock:${row.medicine_id}:`)) {
         rows.push({
           org_id: org.id,
           type: "low_stock",
           medicine_id: row.medicine_id,
+          invoice_id: null,
           title: `Low stock: ${row.name}`,
           message: `${row.total_qty ?? 0} left, reorder level is ${row.reorder_level}.`,
         });
       }
     }
     for (const row of expiringSoon) {
-      if (row.medicine_id && !existingKeys.has(`expiring_soon:${row.medicine_id}`)) {
+      if (row.medicine_id && !existingKeys.has(`expiring_soon:${row.medicine_id}:`)) {
         rows.push({
           org_id: org.id,
           type: "expiring_soon",
           medicine_id: row.medicine_id,
+          invoice_id: null,
           title: `Expiring soon: ${row.name}`,
           message: `Nearest batch expires ${row.nearest_expiry} (${row.total_qty ?? 0} in stock).`,
         });
@@ -77,16 +89,50 @@ export async function GET(request: Request) {
 
     // Only alerts when the service itself is unreachable (VM down, process
     // crashed) — a normal "not yet linked" status is not an outage.
-    if (org.whatsapp_enabled && !existingKeys.has("whatsapp_down:null")) {
+    if (org.whatsapp_enabled && !existingKeys.has("whatsapp_down::")) {
       const reachable = await isWhatsAppServiceReachable(org.id);
       if (!reachable) {
         rows.push({
           org_id: org.id,
           type: "whatsapp_down",
           medicine_id: null,
+          invoice_id: null,
           title: "WhatsApp service unreachable",
           message: `${org.name}: could not reach the WhatsApp service — invoice receipts and alerts are not being sent.`,
         });
+      }
+    }
+
+    // Overdue pending payments: due date has passed and still not fully paid.
+    const { data: overdueInvoices, error: overdueError } = await supabase
+      .from("invoices")
+      .select("id, invoice_no, grand_total, amount_paid, payment_due_at, customers(name, phone)")
+      .eq("org_id", org.id)
+      .eq("is_pending", true)
+      .not("payment_due_at", "is", null)
+      .lte("payment_due_at", nowIso);
+    if (overdueError) throw overdueError;
+
+    for (const inv of overdueInvoices ?? []) {
+      if (existingKeys.has(`payment_overdue::${inv.id}`)) continue;
+      const pending = inv.grand_total - inv.amount_paid;
+      const customer = inv.customers as unknown as { name: string; phone: string | null } | null;
+      rows.push({
+        org_id: org.id,
+        type: "payment_overdue",
+        medicine_id: null,
+        invoice_id: inv.id,
+        title: `Payment overdue: ${inv.invoice_no}`,
+        message: `${customer?.name ?? "Customer"} owes ₹${pending.toFixed(2)} on ${inv.invoice_no}, due ${new Date(inv.payment_due_at!).toLocaleDateString()}.`,
+      });
+
+      if (org.whatsapp_enabled && customer?.phone) {
+        await sendWhatsAppMessage(
+          org.id,
+          customer.phone,
+          `${org.name}: This is a reminder that ₹${pending.toFixed(2)} is pending on your bill ${inv.invoice_no}. Please clear it at your earliest convenience. Thank you!`,
+        );
+        whatsappAlertsSent += 1;
       }
     }
 
