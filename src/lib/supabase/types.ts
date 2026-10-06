@@ -518,6 +518,36 @@ export type Database = {
         }
         Relationships: []
       }
+      password_reset_otps: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -818,6 +848,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      find_ceo_by_email: { Args: { p_email: string }; Returns: string }
       get_invite_by_token: {
         Args: { p_token: string }
         Returns: {
@@ -851,6 +882,19 @@ export type Database = {
       revenue_by_hour: {
         Args: { p_from: string; p_to: string }
         Returns: { hour: string; total: number; order_count: number }[]
+      }
+      sales_by_member: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          avg_bill_value: number
+          full_name: string
+          member_id: string
+          order_count: number
+          pending_amount: number
+          returns_count: number
+          role: Database["public"]["Enums"]["user_role"]
+          total_revenue: number
+        }[]
       }
       sales_summary: {
         Args: { p_from: string; p_to: string }

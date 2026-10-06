@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { InviteTeamDialog } from "@/components/team/invite-team-dialog";
 import { AddTeammateDialog } from "@/components/team/add-teammate-dialog";
+import { ResetPasswordDialog } from "@/components/team/reset-password-dialog";
 import { PendingInvites } from "@/components/team/pending-invites";
 
 export default async function TeamPage() {
@@ -35,20 +36,26 @@ export default async function TeamPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Login email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Joined</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {members.map((m) => (
                 <TableRow key={m.id}>
                   <TableCell>{m.full_name}</TableCell>
+                  <TableCell className="text-muted-foreground">{m.email ?? "—"}</TableCell>
                   <TableCell>
                     <Badge variant={m.role === "ceo" ? "default" : "secondary"} className="capitalize">
                       {m.role}
                     </Badge>
                   </TableCell>
                   <TableCell>{new Date(m.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-right">
+                    {m.role !== "ceo" && <ResetPasswordDialog profileId={m.id} name={m.full_name} />}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

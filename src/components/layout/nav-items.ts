@@ -13,7 +13,7 @@ type IconName =
 
 export const NAV_ITEMS: { href: string; label: string; roles: Role[]; icon: IconName }[] = [
   { href: "/ceo", label: "CEO Dashboard", roles: ["ceo"], icon: "layout-dashboard" },
-  { href: "/sales", label: "Sales Dashboard", roles: ["ceo", "pharmacist"], icon: "trending-up" },
+  { href: "/sales", label: "Sales Dashboard", roles: ["ceo", "pharmacist", "staff"], icon: "trending-up" },
   { href: "/inventory", label: "Inventory", roles: ["ceo", "pharmacist"], icon: "package" },
   { href: "/billing", label: "Billing", roles: ["ceo", "pharmacist", "staff"], icon: "receipt" },
   { href: "/customers", label: "Customers", roles: ["ceo", "pharmacist", "staff"], icon: "users" },

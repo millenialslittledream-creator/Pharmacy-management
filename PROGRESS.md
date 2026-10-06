@@ -114,3 +114,14 @@
 **Fix**: migration `fix_profit_to_use_line_total` — both RPCs now compute `line_total - purchase_rate * qty` instead of `(unit_rate - purchase_rate) * qty`. Verified via direct SQL and live dashboard: the two free invoices (cost ₹123 each, given away) now correctly show as a combined **-246 loss** (real cost of goods given away) instead of +22 phantom profit — confirmed a follow-up real sale correctly nets to -236 (-246 + 10 margin on the new sale).
 **Files changed**: Supabase migration `fix_profit_to_use_line_total` (remote only, no app code changes needed — RPC signatures unchanged).
 **Status**: all 5 features + this fix pushed to `origin/claude/project-context-features-ca5cf7`.
+
+## 2026-10-06 - Record payments, CEO password recovery, per-member sales
+**Status**: Completed (SMTP must be configured before recovery emails send in production)
+**What was done**:
+- `record_payment` RPC + "Record payment" dialog on pending invoices; Receivables card on the CEO dashboard links to `/billing?pending=1` (list opens pre-filtered).
+- Suri's login email changed to the Harihara address via the admin API (password untouched).
+- CEO-only "forgot password" by emailed 6-digit code: `/forgot-password`, `password_reset_otps` table (HMAC-hashed codes, 10 min expiry, 5 attempts, single use, max 3 sends/hour), `find_ceo_by_email` (service-role only), nodemailer over SMTP. Teammates have no self-service recovery by design.
+- CEO resets teammate passwords from the Team page (+ login email column). Passwords are hashed so they can't be *viewed*; the CEO sets a new one (Generate button) and shares it.
+- Per-member sales: `revenue_by_day/hour` and `sales_summary` now only count a non-CEO user's own invoices (enforced in SQL); new `sales_by_member` powers a CEO-only "Sales by team member" table; staff get "My Sales" at `/sales`. Cached dashboard queries are now keyed per user (they were org-keyed only, which would have leaked CEO totals to staff).
+**Needs from the user**: set `SMTP_HOST/PORT/USER/PASS/FROM` in Vercel env (see `.env.example`). Until then the CEO recovery page shows "Email sending isn't set up yet".
+**Verified**: OTP flow end-to-end against a local SMTP sink (wrong code rejected, reuse rejected, staff email sends nothing); teammate password reset (new works, old rejected); sales scoping via role-impersonated SQL and live pages (CEO sees all, staff/pharmacist only own).

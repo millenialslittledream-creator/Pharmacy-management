@@ -37,6 +37,11 @@ export default async function LoginPage({
             <Button type="submit" size="lg" className="w-full">Sign in</Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
+            <Link href="/forgot-password" className="font-medium text-primary underline-offset-4 hover:underline">
+              Forgot password?
+            </Link>
+          </p>
+          <p className="mt-2 text-center text-sm text-muted-foreground">
             No account?{" "}
             <Link href="/signup" className="font-medium text-primary underline-offset-4 hover:underline">
               Create one

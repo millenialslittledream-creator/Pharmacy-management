@@ -9,13 +9,43 @@ import type { Database } from "@/lib/supabase/types";
 type Role = Database["public"]["Enums"]["user_role"];
 
 export async function listTeamMembers() {
-  const { supabase } = await requireOrgId();
+  const { supabase, role } = await requireOrgId();
   const { data, error } = await supabase
     .from("profiles")
     .select("id, full_name, role, created_at")
     .order("created_at");
   if (error) throw error;
-  return data;
+
+  // Login emails live in auth.users, so only the CEO gets them (to know
+  // what to share with a teammate) and only via the admin API.
+  if (role !== "ceo") return data.map((m) => ({ ...m, email: null as string | null }));
+  const admin = createAdminClient();
+  return Promise.all(
+    data.map(async (m) => {
+      const { data: u } = await admin.auth.admin.getUserById(m.id);
+      return { ...m, email: u.user?.email ?? null };
+    }),
+  );
+}
+
+// Passwords are stored as one-way hashes, so they can't be viewed — the CEO
+// sets a new one and shares it with the teammate.
+export async function resetTeammatePassword(profileId: string, newPassword: string) {
+  const { orgId, role } = await requireOrgId();
+  if (role !== "ceo") throw new Error("Only the CEO can reset teammate passwords");
+  if (newPassword.length < 8) throw new Error("Password must be at least 8 characters");
+
+  const admin = createAdminClient();
+  const { data: target } = await admin
+    .from("profiles")
+    .select("id, org_id, role")
+    .eq("id", profileId)
+    .single();
+  if (!target || target.org_id !== orgId) throw new Error("Teammate not found");
+  if (target.role === "ceo") throw new Error("The CEO's password can't be reset from here");
+
+  const { error } = await admin.auth.admin.updateUserById(profileId, { password: newPassword });
+  if (error) throw new Error(error.message);
 }
 
 export async function listPendingInvites() {

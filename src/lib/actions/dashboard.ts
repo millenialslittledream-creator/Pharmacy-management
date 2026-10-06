@@ -6,28 +6,28 @@ import { requireOrgId } from "@/lib/actions/require-org";
 const REVALIDATE_SECONDS = 60;
 
 export async function getRevenueByDay(from: string, to: string) {
-  const { supabase, orgId } = await requireOrgId();
+  const { supabase, orgId, userId } = await requireOrgId();
   const cached = unstable_cache(
     async () => {
       const { data, error } = await supabase.rpc("revenue_by_day", { p_from: from, p_to: to });
       if (error) throw error;
       return data;
     },
-    ["revenue-by-day", orgId, from, to],
+    ["revenue-by-day", orgId, userId, from, to],
     { revalidate: REVALIDATE_SECONDS, tags: [`dashboard-${orgId}`] },
   );
   return cached();
 }
 
 export async function getRevenueByHour(from: string, to: string) {
-  const { supabase, orgId } = await requireOrgId();
+  const { supabase, orgId, userId } = await requireOrgId();
   const cached = unstable_cache(
     async () => {
       const { data, error } = await supabase.rpc("revenue_by_hour", { p_from: from, p_to: to });
       if (error) throw error;
       return data;
     },
-    ["revenue-by-hour", orgId, from, to],
+    ["revenue-by-hour", orgId, userId, from, to],
     { revalidate: REVALIDATE_SECONDS, tags: [`dashboard-${orgId}`] },
   );
   return cached();
@@ -80,14 +80,14 @@ export async function getTopSellingMedicines(from: string, to: string, limit = 1
 }
 
 export async function getSalesSummary(from: string, to: string) {
-  const { supabase, orgId } = await requireOrgId();
+  const { supabase, orgId, userId } = await requireOrgId();
   const cached = unstable_cache(
     async () => {
       const { data, error } = await supabase.rpc("sales_summary", { p_from: from, p_to: to });
       if (error) throw error;
       return data[0];
     },
-    ["sales-summary", orgId, from, to],
+    ["sales-summary", orgId, userId, from, to],
     { revalidate: REVALIDATE_SECONDS, tags: [`dashboard-${orgId}`] },
   );
   return cached();
@@ -102,6 +102,21 @@ export async function getDashboardAlerts() {
       return data[0];
     },
     ["dashboard-alerts", orgId],
+    { revalidate: REVALIDATE_SECONDS, tags: [`dashboard-${orgId}`] },
+  );
+  return cached();
+}
+
+export async function getSalesByMember(from: string, to: string) {
+  const { supabase, orgId, userId, role } = await requireOrgId();
+  if (role !== "ceo") return [];
+  const cached = unstable_cache(
+    async () => {
+      const { data, error } = await supabase.rpc("sales_by_member", { p_from: from, p_to: to });
+      if (error) throw error;
+      return data;
+    },
+    ["sales-by-member", orgId, userId, from, to],
     { revalidate: REVALIDATE_SECONDS, tags: [`dashboard-${orgId}`] },
   );
   return cached();

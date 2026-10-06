@@ -32,7 +32,10 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   const isAuthRoute =
-    path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/invite");
+    path.startsWith("/login") ||
+    path.startsWith("/signup") ||
+    path.startsWith("/invite") ||
+    path.startsWith("/forgot-password");
 
   if (!user && !isAuthRoute) {
     const url = request.nextUrl.clone();
@@ -61,7 +64,7 @@ export async function updateSession(request: NextRequest) {
     }
 
     const blockedPrefixes: Record<string, string[]> = {
-      staff: ["/ceo", "/sales", "/inventory", "/team", "/settings", "/compliance"],
+      staff: ["/ceo", "/inventory", "/team", "/settings", "/compliance"],
       pharmacist: ["/ceo", "/team", "/settings"],
       ceo: [],
     };
