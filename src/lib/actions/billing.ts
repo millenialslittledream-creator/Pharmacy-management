@@ -246,6 +246,20 @@ export async function returnInvoice(invoiceId: string) {
   updateTag(`dashboard-${orgId}`);
 }
 
+export async function recordPayment(invoiceId: string, amount: number, method: PaymentMode) {
+  const { supabase, orgId } = await requireOrgId();
+  const { error } = await supabase.rpc("record_payment", {
+    p_invoice_id: invoiceId,
+    p_amount: amount,
+    p_method: method,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/billing");
+  revalidatePath(`/billing/${invoiceId}`);
+  revalidatePath("/customers");
+  updateTag(`dashboard-${orgId}`);
+}
+
 export async function editInvoice(
   invoiceId: string,
   input: { items: InvoiceLineInput[]; discountTotal: number },

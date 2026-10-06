@@ -835,6 +835,14 @@ export type Database = {
         Args: { p_from: string; p_to: string }
         Returns: { hour: string; profit: number }[]
       }
+      record_payment: {
+        Args: {
+          p_amount: number
+          p_invoice_id: string
+          p_method: Database["public"]["Enums"]["payment_mode"]
+        }
+        Returns: undefined
+      }
       return_invoice: { Args: { p_invoice_id: string }; Returns: undefined }
       revenue_by_day: {
         Args: { p_from: string; p_to: string }

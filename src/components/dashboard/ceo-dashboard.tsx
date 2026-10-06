@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import {
   Bar,
   BarChart,
@@ -230,15 +231,18 @@ export function CeoDashboard({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Receivables</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">Total outstanding customer balance</p>
-            <p className="text-3xl font-semibold tracking-tight">{alerts?.outstanding_total.toFixed(2) ?? "—"}</p>
-          </CardContent>
-        </Card>
+        <Link href="/billing?pending=1" className="block transition-opacity hover:opacity-80">
+          <Card>
+            <CardHeader>
+              <CardTitle>Receivables</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Total outstanding customer balance</p>
+              <p className="text-3xl font-semibold tracking-tight">{alerts?.outstanding_total.toFixed(2) ?? "—"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Click to see who owes what</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
     </div>
   );

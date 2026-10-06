@@ -46,8 +46,16 @@ type Invoice = {
 
 const ALL = "__all__";
 
-export function InvoiceList({ canEdit }: { canEdit: boolean }) {
-  const [filters, setFilters] = useState<InvoiceFilters>({});
+export function InvoiceList({
+  canEdit,
+  initialPendingOnly = false,
+}: {
+  canEdit: boolean;
+  initialPendingOnly?: boolean;
+}) {
+  const [filters, setFilters] = useState<InvoiceFilters>(
+    initialPendingOnly ? { pendingOnly: true } : {},
+  );
   const [customerName, setCustomerName] = useState("");
   const [page, setPage] = useState(1);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -158,7 +166,7 @@ export function InvoiceList({ canEdit }: { canEdit: boolean }) {
           <Label className="mb-1.5 block text-xs">Pending amount</Label>
           <Select
             onValueChange={(v) => updateFilter({ pendingOnly: v === ALL ? undefined : true })}
-            defaultValue={ALL}
+            defaultValue={initialPendingOnly ? "pending" : ALL}
           >
             <SelectTrigger>
               <SelectValue />

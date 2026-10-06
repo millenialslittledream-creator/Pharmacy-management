@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PrintButton } from "@/components/billing/print-button";
+import { RecordPaymentDialog } from "@/components/billing/record-payment-dialog";
 
 export default async function InvoiceDetailPage({
   params,
@@ -43,6 +44,12 @@ export default async function InvoiceDetailPage({
           <Button asChild variant="outline">
             <Link href="/billing">New sale</Link>
           </Button>
+          {invoice.is_pending && (
+            <RecordPaymentDialog
+              invoiceId={invoiceId}
+              pendingAmount={invoice.grand_total - invoice.amount_paid}
+            />
+          )}
           {canEdit && (
             <Button asChild variant="outline">
               <Link href={`/billing/${invoiceId}/edit`}>Edit</Link>

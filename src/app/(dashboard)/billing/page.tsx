@@ -4,7 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listQuickPicks } from "@/lib/actions/quick-picks";
 import { requireOrgId } from "@/lib/actions/require-org";
 
-export default async function BillingPage() {
+export default async function BillingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pending?: string }>;
+}) {
+  const { pending } = await searchParams;
   const [{ role }, quickPicks] = await Promise.all([requireOrgId(), listQuickPicks()]);
 
   return (
@@ -16,7 +21,10 @@ export default async function BillingPage() {
           <CardTitle>Invoices</CardTitle>
         </CardHeader>
         <CardContent>
-          <InvoiceList canEdit={role === "ceo" || role === "pharmacist"} />
+          <InvoiceList
+            canEdit={role === "ceo" || role === "pharmacist"}
+            initialPendingOnly={pending === "1"}
+          />
         </CardContent>
       </Card>
     </div>
