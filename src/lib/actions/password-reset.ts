@@ -1,12 +1,11 @@
 "use server";
 
-import { createHmac, randomInt, timingSafeEqual } from "crypto";
+import { createHmac, randomInt } from "crypto";
 import { redirect } from "next/navigation";
 import nodemailer from "nodemailer";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const OTP_TTL_MINUTES = 10;
-const MAX_ATTEMPTS = 5;
 const MAX_SENDS_PER_HOUR = 3;
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -99,30 +98,14 @@ export async function resetPasswordWithOtp(formData: FormData) {
   const invalid = `${back}&error=That code is invalid or has expired`;
   if (!userId) redirect(invalid);
 
-  const { data: otp } = await admin
-    .from("password_reset_otps")
-    .select("id, code_hash, attempts")
-    .eq("user_id", userId)
-    .is("used_at", null)
-    .gt("expires_at", new Date().toISOString())
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (!otp || otp.attempts >= MAX_ATTEMPTS) redirect(invalid);
-
-  await admin
-    .from("password_reset_otps")
-    .update({ attempts: otp.attempts + 1 })
-    .eq("id", otp.id);
-
-  const expected = Buffer.from(otp.code_hash, "hex");
-  const actual = Buffer.from(hashCode(userId, code), "hex");
-  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) redirect(invalid);
-
-  await admin
-    .from("password_reset_otps")
-    .update({ used_at: new Date().toISOString() })
-    .eq("id", otp.id);
+  // Atomic in the database: counts the attempt, enforces the cap, checks
+  // expiry/single-use, and marks the code used on success — all under a row
+  // lock, so parallel guesses can't slip past the attempt limit.
+  const { data: accepted } = await admin.rpc("consume_otp_attempt", {
+    p_user_id: userId,
+    p_code_hash: hashCode(userId, code),
+  });
+  if (!accepted) redirect(invalid);
 
   const { error } = await admin.auth.admin.updateUserById(userId, { password });
   if (error) redirect(`${back}&error=${encodeURIComponent(error.message)}`);

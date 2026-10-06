@@ -815,6 +815,10 @@ export type Database = {
         Args: { p_full_name: string; p_org_name: string }
         Returns: string
       }
+      consume_otp_attempt: {
+        Args: { p_code_hash: string; p_user_id: string }
+        Returns: boolean
+      }
       create_invite: {
         Args: {
           p_email: string
