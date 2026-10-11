@@ -5,6 +5,7 @@ import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { WhatsAppStatusBadge } from "@/components/layout/whatsapp-status-badge";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { RealtimeRefresher } from "@/components/layout/realtime-refresher";
+import { PresenceHeartbeat } from "@/components/layout/presence-heartbeat";
 import { Button } from "@/components/ui/button";
 import { logout } from "@/lib/actions/auth";
 
@@ -19,6 +20,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="relative flex min-h-screen">
       <RealtimeRefresher orgId={profile.org_id} />
+      <PresenceHeartbeat />
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_15%_0%,oklch(0.4_0.1_178/8%),transparent_55%)] dark:bg-[radial-gradient(circle_at_15%_0%,oklch(0.78_0.13_178/10%),transparent_55%)] print:hidden"

@@ -13,9 +13,29 @@ import { InviteTeamDialog } from "@/components/team/invite-team-dialog";
 import { AddTeammateDialog } from "@/components/team/add-teammate-dialog";
 import { ResetPasswordDialog } from "@/components/team/reset-password-dialog";
 import { PendingInvites } from "@/components/team/pending-invites";
+import { formatLastActive, getPresence } from "@/lib/presence";
+
+const STATUS_LABEL = {
+  online: "Active now",
+  today: "Active today",
+  inactive: "Inactive",
+  never: "Never signed in",
+} as const;
+
+const STATUS_DOT = {
+  online: "bg-emerald-500",
+  today: "bg-amber-500",
+  inactive: "bg-muted-foreground/40",
+  never: "bg-muted-foreground/40",
+} as const;
 
 export default async function TeamPage() {
-  const [members, invites] = await Promise.all([listTeamMembers(), listPendingInvites()]);
+  const [rawMembers, invites] = await Promise.all([listTeamMembers(), listPendingInvites()]);
+  const members = rawMembers.map((m) => ({
+    ...m,
+    presence: getPresence(m.last_seen_at, m.last_sign_in_at),
+  }));
+  const activeNow = members.filter((m) => m.presence.status === "online").length;
 
   return (
     <div className="space-y-4">
@@ -29,7 +49,9 @@ export default async function TeamPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Members</CardTitle>
+          <CardTitle>
+            Members <span className="ml-2 text-sm font-normal text-muted-foreground">{activeNow} of {members.length} active now</span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -38,6 +60,7 @@ export default async function TeamPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Login email</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Joined</TableHead>
                 <TableHead></TableHead>
               </TableRow>
@@ -51,6 +74,19 @@ export default async function TeamPage() {
                     <Badge variant={m.role === "ceo" ? "default" : "secondary"} className="capitalize">
                       {m.role}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className={`size-2 rounded-full ${STATUS_DOT[m.presence.status]}`} />
+                      <div className="leading-tight">
+                        <p className="text-sm">{STATUS_LABEL[m.presence.status]}</p>
+                        {m.presence.lastActive && (
+                          <p className="text-xs text-muted-foreground">
+                            {formatLastActive(m.presence.lastActive)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>{new Date(m.created_at).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">

@@ -133,3 +133,9 @@
 - App: `payments.ts` via RPCs, `customers.ts` field whitelist, cron fails closed + timing-safe, whatsapp-service timing-safe secret, 8-char password minimum server-side, security headers + no X-Powered-By, Next 16.4.0 + `npm audit fix`.
 **Files changed**: `next.config.ts`, `src/lib/actions/{auth,customers,payments}.ts`, `src/app/api/cron/daily-alerts/route.ts`, `src/lib/supabase/types.ts`, signup/invite pages, `whatsapp-service/index.js`, `package*.json`.
 **Next steps**: redeploy whatsapp-service to VM (timing-safe secret) when asked; serve it over HTTPS; enable leaked-password protection + backups in Supabase; replace `xlsx` (no upstream fix); rotate the shared Gmail app password.
+
+## 2026-10-11 - WhatsApp redeploy + CEO active-accounts view
+**Status**: Completed
+**What was done**: Redeployed whatsapp-service on the Oracle VM (git pull + `pm2 restart whatsapp`; wrong/missing secret → 401, valid → authorized). Added `profiles.last_seen_at` + `touch_last_seen()` RPC (own-row only, 2-min throttle), a client heartbeat in the dashboard layout, and a Status column on Team (Active now ≤5 min / Active today / Inactive / Never signed in, with last-active time; CEO also sees auth last sign-in).
+**Files changed**: `src/components/layout/presence-heartbeat.tsx`, `src/lib/presence.ts`, `src/lib/actions/team.ts`, `src/app/(dashboard)/team/page.tsx`, `src/app/(dashboard)/layout.tsx`, `src/lib/supabase/types.ts`
+**Next steps**: HTTPS for whatsapp-service.

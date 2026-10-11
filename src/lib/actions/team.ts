@@ -12,18 +12,29 @@ export async function listTeamMembers() {
   const { supabase, role } = await requireOrgId();
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, full_name, role, created_at")
+    .select("id, full_name, role, created_at, last_seen_at")
     .order("created_at");
   if (error) throw error;
 
-  // Login emails live in auth.users, so only the CEO gets them (to know
-  // what to share with a teammate) and only via the admin API.
-  if (role !== "ceo") return data.map((m) => ({ ...m, email: null as string | null }));
+  // Login emails and sign-in times live in auth.users, so only the CEO gets
+  // them (to know what to share with a teammate / who is in use) and only
+  // via the admin API.
+  if (role !== "ceo") {
+    return data.map((m) => ({
+      ...m,
+      email: null as string | null,
+      last_sign_in_at: null as string | null,
+    }));
+  }
   const admin = createAdminClient();
   return Promise.all(
     data.map(async (m) => {
       const { data: u } = await admin.auth.admin.getUserById(m.id);
-      return { ...m, email: u.user?.email ?? null };
+      return {
+        ...m,
+        email: u.user?.email ?? null,
+        last_sign_in_at: u.user?.last_sign_in_at ?? null,
+      };
     }),
   );
 }

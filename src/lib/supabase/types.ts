@@ -608,6 +608,7 @@ export type Database = {
           created_at: string
           full_name: string
           id: string
+          last_seen_at: string | null
           org_id: string
           role: Database["public"]["Enums"]["user_role"]
         }
@@ -615,6 +616,7 @@ export type Database = {
           created_at?: string
           full_name: string
           id: string
+          last_seen_at?: string | null
           org_id: string
           role?: Database["public"]["Enums"]["user_role"]
         }
@@ -622,6 +624,7 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          last_seen_at?: string | null
           org_id?: string
           role?: Database["public"]["Enums"]["user_role"]
         }
@@ -908,6 +911,7 @@ export type Database = {
           total_revenue: number
         }[]
       }
+      touch_last_seen: { Args: never; Returns: undefined }
       sales_summary: {
         Args: { p_from: string; p_to: string }
         Returns: {
