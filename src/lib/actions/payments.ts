@@ -23,30 +23,23 @@ export async function recordPayment(input: {
   method: PaymentMode;
   invoiceId?: string;
 }) {
-  const { supabase, orgId } = await requireOrgId();
+  const { supabase } = await requireOrgId();
 
-  const { data: customer, error: customerError } = await supabase
-    .from("customers")
-    .select("outstanding_balance")
-    .eq("id", input.customerId)
-    .single();
-  if (customerError) throw customerError;
-
-  const { error: insertError } = await supabase.from("payments").insert({
-    org_id: orgId,
-    customer_id: input.customerId,
-    invoice_id: input.invoiceId ?? null,
-    amount: input.amount,
-    method: input.method,
-  });
-  if (insertError) throw insertError;
-
-  const newBalance = Math.max(0, customer.outstanding_balance - input.amount);
-  const { error: updateError } = await supabase
-    .from("customers")
-    .update({ outstanding_balance: newBalance })
-    .eq("id", input.customerId);
-  if (updateError) throw updateError;
+  // Balance and invoice updates happen atomically in the database; the old
+  // client-side read-then-write could be raced and let callers write any value.
+  const { error } = input.invoiceId
+    ? await supabase.rpc("record_payment", {
+        p_invoice_id: input.invoiceId,
+        p_amount: input.amount,
+        p_method: input.method,
+      })
+    : await supabase.rpc("record_customer_payment", {
+        p_customer_id: input.customerId,
+        p_amount: input.amount,
+        p_method: input.method,
+      });
+  if (error) throw new Error(error.message);
 
   revalidatePath(`/customers/${input.customerId}`);
+  revalidatePath("/billing");
 }

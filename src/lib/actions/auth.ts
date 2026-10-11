@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
+const MIN_PASSWORD_LENGTH = 8;
+
 export async function login(formData: FormData) {
   const supabase = await createClient();
 
@@ -26,6 +28,10 @@ export async function signup(formData: FormData) {
   const password = String(formData.get("password"));
   const fullName = String(formData.get("full_name"));
   const orgName = String(formData.get("org_name"));
+
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    redirect(`/signup?error=Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+  }
 
   const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
   if (signUpError) {
@@ -57,6 +63,10 @@ export async function acceptInviteSignup(formData: FormData) {
   const email = String(formData.get("email"));
   const password = String(formData.get("password"));
   const fullName = String(formData.get("full_name"));
+
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    redirect(`/invite/${token}?error=Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+  }
 
   const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
   if (signUpError) {

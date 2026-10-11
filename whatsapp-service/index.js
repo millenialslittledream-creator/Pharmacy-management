@@ -3,6 +3,7 @@ import pino from "pino";
 import QRCode from "qrcode";
 import { promises as fs } from "fs";
 import path from "path";
+import { timingSafeEqual } from "crypto";
 import {
   default as makeWASocket,
   useMultiFileAuthState,
@@ -117,7 +118,9 @@ const app = express();
 app.use(express.json({ limit: "10mb" }));
 
 function requireAuth(req, res, next) {
-  if (req.headers["x-api-secret"] !== API_SECRET) {
+  const provided = Buffer.from(String(req.headers["x-api-secret"] ?? ""));
+  const expected = Buffer.from(API_SECRET);
+  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
     return res.status(401).json({ error: "unauthorized" });
   }
   next();

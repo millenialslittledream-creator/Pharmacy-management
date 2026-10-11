@@ -870,6 +870,14 @@ export type Database = {
         Args: { p_from: string; p_to: string }
         Returns: { hour: string; profit: number }[]
       }
+      record_customer_payment: {
+        Args: {
+          p_amount: number
+          p_customer_id: string
+          p_method: Database["public"]["Enums"]["payment_mode"]
+        }
+        Returns: undefined
+      }
       record_payment: {
         Args: {
           p_amount: number

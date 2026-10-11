@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWhatsAppMessage, isWhatsAppServiceReachable } from "@/lib/whatsapp";
@@ -16,8 +17,11 @@ type NotificationRow = {
 };
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const secret = process.env.CRON_SECRET;
+  const provided = Buffer.from(request.headers.get("authorization") ?? "");
+  const expected = Buffer.from(`Bearer ${secret ?? ""}`);
+  // Fail closed when the secret isn't configured, and compare in constant time.
+  if (!secret || provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 

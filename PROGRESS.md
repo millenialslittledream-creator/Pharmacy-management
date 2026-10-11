@@ -125,3 +125,11 @@
 - Per-member sales: `revenue_by_day/hour` and `sales_summary` now only count a non-CEO user's own invoices (enforced in SQL); new `sales_by_member` powers a CEO-only "Sales by team member" table; staff get "My Sales" at `/sales`. Cached dashboard queries are now keyed per user (they were org-keyed only, which would have leaked CEO totals to staff).
 **Needs from the user**: set `SMTP_HOST/PORT/USER/PASS/FROM` in Vercel env (see `.env.example`). Until then the CEO recovery page shows "Email sending isn't set up yet".
 **Verified**: OTP flow end-to-end against a local SMTP sink (wrong code rejected, reuse rejected, staff email sends nothing); teammate password reset (new works, old rejected); sales scoping via role-impersonated SQL and live pages (CEO sees all, staff/pharmacist only own).
+
+## 2026-10-11 - Security hardening
+**Status**: Completed
+**What was done**:
+- DB (applied to Supabase): signed-out role stripped of all table/function access; staff can no longer promote themselves (profiles writable = full_name only); customers/organizations/notifications limited to safe columns; invoices/invoice_items/payments writable only via SECURITY DEFINER RPCs; all billing RPCs null-safe auth guards (`IS DISTINCT FROM`) + server-side qty/rate/discount/customer-org validation; new atomic `record_customer_payment`; profit/top-selling/alerts RPCs CEO-only; function EXECUTE grants allow-listed.
+- App: `payments.ts` via RPCs, `customers.ts` field whitelist, cron fails closed + timing-safe, whatsapp-service timing-safe secret, 8-char password minimum server-side, security headers + no X-Powered-By, Next 16.4.0 + `npm audit fix`.
+**Files changed**: `next.config.ts`, `src/lib/actions/{auth,customers,payments}.ts`, `src/app/api/cron/daily-alerts/route.ts`, `src/lib/supabase/types.ts`, signup/invite pages, `whatsapp-service/index.js`, `package*.json`.
+**Next steps**: redeploy whatsapp-service to VM (timing-safe secret) when asked; serve it over HTTPS; enable leaked-password protection + backups in Supabase; replace `xlsx` (no upstream fix); rotate the shared Gmail app password.

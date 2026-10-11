@@ -33,11 +33,23 @@ export type CreateCustomerInput = {
   gender?: string;
 };
 
+// Server actions accept arbitrary objects from the client; only these contact
+// fields may ever be written (balances/points change through billing only).
+function pickCustomerFields(input: Partial<CreateCustomerInput>) {
+  const fields: Partial<CreateCustomerInput> = {};
+  if (input.name !== undefined) fields.name = String(input.name).trim();
+  if (input.phone !== undefined) fields.phone = String(input.phone);
+  if (input.address !== undefined) fields.address = String(input.address);
+  if (input.age !== undefined) fields.age = Number(input.age);
+  if (input.gender !== undefined) fields.gender = String(input.gender);
+  return fields;
+}
+
 export async function createCustomer(input: CreateCustomerInput) {
   const { supabase, orgId } = await requireOrgId();
   const { data, error } = await supabase
     .from("customers")
-    .insert({ ...input, org_id: orgId })
+    .insert({ ...pickCustomerFields(input), name: String(input.name).trim(), org_id: orgId })
     .select("id")
     .single();
 
@@ -48,7 +60,10 @@ export async function createCustomer(input: CreateCustomerInput) {
 
 export async function updateCustomer(id: string, input: Partial<CreateCustomerInput>) {
   const { supabase } = await requireOrgId();
-  const { error } = await supabase.from("customers").update(input).eq("id", id);
+  const { error } = await supabase
+    .from("customers")
+    .update(pickCustomerFields(input))
+    .eq("id", id);
   if (error) throw error;
   revalidatePath("/customers");
 }

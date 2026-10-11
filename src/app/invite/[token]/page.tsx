@@ -55,7 +55,7 @@ export default async function InvitePage({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
-                  <Input id="password" name="password" type="password" required minLength={6} autoComplete="new-password" />
+                  <Input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" />
                 </div>
                 {error && <p className="text-sm text-destructive">{error}</p>}
                 <Button type="submit" className="w-full">
