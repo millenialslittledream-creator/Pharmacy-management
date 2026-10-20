@@ -13,6 +13,7 @@ export async function searchMedicines(query: string) {
     .from("medicines")
     .select("id, name, generic_name, manufacturer, unit, default_sale_rate, barcode, schedule_category")
     .eq("org_id", orgId)
+    .is("archived_at", null)
     .or(`name.ilike.%${term}%,generic_name.ilike.%${term}%,barcode.ilike.%${term}%`)
     .order("name")
     .limit(15);
@@ -27,6 +28,7 @@ export async function findMedicineByBarcode(barcode: string) {
     .from("medicines")
     .select("id, name, generic_name, manufacturer, unit, default_sale_rate, barcode, schedule_category")
     .eq("org_id", orgId)
+    .is("archived_at", null)
     .eq("barcode", barcode)
     .maybeSingle();
 
@@ -217,4 +219,112 @@ export async function bulkImportRows(rows: BulkImportRow[]) {
 
   revalidatePath("/inventory");
   return { created, matched, batchesCreated };
+}
+
+// ---- CEO-only stock editing --------------------------------------------
+// Each of these is also enforced in the database (RLS / role checks inside the
+// functions); the check here just gives a clear message instead of a raw error.
+
+async function requireCeo() {
+  const ctx = await requireOrgId();
+  if (ctx.role !== "ceo") throw new Error("Only the CEO can edit or delete stock");
+  return ctx;
+}
+
+export type EditableMedicine = {
+  id: string;
+  name: string;
+  generic_name: string | null;
+  manufacturer: string | null;
+  category: string | null;
+  unit: string | null;
+  pack_size: string | null;
+  hsn_code: string | null;
+  tax_rate: number | null;
+  reorder_level: number;
+  default_purchase_rate: number | null;
+  default_sale_rate: number | null;
+  schedule_category: string | null;
+  barcode: string | null;
+};
+
+export type EditableBatch = {
+  id: string;
+  batch_no: string;
+  mfg_date: string | null;
+  expiry_date: string;
+  mrp: number | null;
+  purchase_rate: number;
+  sale_rate: number;
+  qty_in_stock: number;
+};
+
+export async function getMedicineForEdit(id: string) {
+  const { supabase } = await requireCeo();
+  const { data, error } = await supabase.rpc("get_medicine_for_edit", { p_id: id });
+  if (error) throw new Error(error.message);
+  return data as unknown as { medicine: EditableMedicine; batches: EditableBatch[] };
+}
+
+export type UpdateMedicineInput = Omit<EditableMedicine, "id">;
+
+export async function updateMedicine(id: string, input: UpdateMedicineInput) {
+  const { supabase } = await requireCeo();
+  const name = input.name?.trim();
+  if (!name) throw new Error("Name is required");
+  if ((input.reorder_level ?? 0) < 0) throw new Error("Reorder level cannot be negative");
+
+  const { error } = await supabase
+    .from("medicines")
+    .update({
+      name,
+      generic_name: input.generic_name || null,
+      manufacturer: input.manufacturer || null,
+      category: input.category || null,
+      unit: input.unit || null,
+      pack_size: input.pack_size || null,
+      hsn_code: input.hsn_code || null,
+      tax_rate: input.tax_rate,
+      reorder_level: input.reorder_level ?? 0,
+      default_purchase_rate: input.default_purchase_rate,
+      default_sale_rate: input.default_sale_rate,
+      schedule_category: input.schedule_category || null,
+      barcode: input.barcode || null,
+    })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/inventory");
+}
+
+export async function updateBatch(id: string, input: Omit<EditableBatch, "id">) {
+  const { supabase } = await requireCeo();
+  const { error } = await supabase.rpc("update_batch", {
+    p_batch_id: id,
+    p_batch_no: input.batch_no,
+    p_mfg_date: input.mfg_date ?? (null as unknown as string),
+    p_expiry_date: input.expiry_date,
+    p_mrp: input.mrp ?? (null as unknown as number),
+    p_purchase_rate: input.purchase_rate,
+    p_sale_rate: input.sale_rate,
+    p_qty: input.qty_in_stock,
+    p_supplier_id: null as unknown as string,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/inventory");
+}
+
+export async function deleteMedicines(ids: string[]) {
+  const { supabase } = await requireCeo();
+  const { data, error } = await supabase.rpc("delete_medicines", { p_ids: ids });
+  if (error) throw new Error(error.message);
+  revalidatePath("/inventory");
+  return data as unknown as { deleted: number; archived: number };
+}
+
+export async function deleteBatches(ids: string[]) {
+  const { supabase } = await requireCeo();
+  const { data, error } = await supabase.rpc("delete_batches", { p_ids: ids });
+  if (error) throw new Error(error.message);
+  revalidatePath("/inventory");
+  return data as unknown as { deleted: number; zeroed: number };
 }

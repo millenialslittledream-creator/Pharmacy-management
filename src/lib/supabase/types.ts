@@ -344,6 +344,7 @@ export type Database = {
       }
       medicines: {
         Row: {
+          archived_at: string | null
           barcode: string | null
           category: string | null
           created_at: string
@@ -362,6 +363,7 @@ export type Database = {
           unit: string | null
         }
         Insert: {
+          archived_at?: string | null
           barcode?: string | null
           category?: string | null
           created_at?: string
@@ -380,6 +382,7 @@ export type Database = {
           unit?: string | null
         }
         Update: {
+          archived_at?: string | null
           barcode?: string | null
           category?: string | null
           created_at?: string
@@ -762,10 +765,12 @@ export type Database = {
       medicine_stock_summary: {
         Row: {
           avg_purchase_rate: number | null
+          barcode: string | null
           batch_count: number | null
           category: string | null
           default_sale_rate: number | null
           generic_name: string | null
+          hsn_code: string | null
           manufacturer: string | null
           medicine_id: string | null
           name: string | null
@@ -773,6 +778,8 @@ export type Database = {
           org_id: string | null
           pack_size: string | null
           reorder_level: number | null
+          schedule_category: string | null
+          tax_rate: number | null
           total_qty: number | null
           unit: string | null
         }
@@ -847,6 +854,8 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: { low_stock_count: number; expiring_soon_count: number; outstanding_total: number }[]
       }
+      delete_batches: { Args: { p_ids: string[] }; Returns: Json }
+      delete_medicines: { Args: { p_ids: string[] }; Returns: Json }
       edit_invoice: {
         Args: {
           p_discount_total: number
@@ -865,6 +874,7 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"]
         }[]
       }
+      get_medicine_for_edit: { Args: { p_id: string }; Returns: Json }
       profit_by_day: {
         Args: { p_from: string; p_to: string }
         Returns: { day: string; profit: number }[]
@@ -912,6 +922,20 @@ export type Database = {
         }[]
       }
       touch_last_seen: { Args: never; Returns: undefined }
+      update_batch: {
+        Args: {
+          p_batch_id: string
+          p_batch_no: string
+          p_expiry_date: string
+          p_mfg_date: string
+          p_mrp: number
+          p_purchase_rate: number
+          p_qty: number
+          p_sale_rate: number
+          p_supplier_id: string
+        }
+        Returns: undefined
+      }
       sales_summary: {
         Args: { p_from: string; p_to: string }
         Returns: {

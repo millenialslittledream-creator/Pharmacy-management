@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-const TABLES = ["invoices", "medicine_batches", "customers", "payments"] as const;
+const TABLES = ["invoices", "stock_movements", "customers", "payments"] as const;
 const DEBOUNCE_MS = 400;
 
 export function RealtimeRefresher({ orgId }: { orgId: string }) {

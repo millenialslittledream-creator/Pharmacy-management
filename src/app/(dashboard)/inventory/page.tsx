@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { requireOrgId } from "@/lib/actions/require-org";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AddMedicineDialog } from "@/components/inventory/add-medicine-dialog";
@@ -7,13 +7,16 @@ import { AddBatchDialog } from "@/components/inventory/add-batch-dialog";
 import { InventoryTable, type StockRow } from "@/components/inventory/inventory-table";
 
 export default async function InventoryPage() {
-  const supabase = await createClient();
+  const { supabase, userId, role } = await requireOrgId();
+  const isCeo = role === "ceo";
   const { data } = await supabase
     .from("medicine_stock_summary")
     .select("*")
     .order("name");
 
-  const rows: StockRow[] = data ?? [];
+  // The view already returns no cost to non-CEOs; this keeps it out of the
+  // page payload even if that ever changed.
+  const rows: StockRow[] = (data ?? []).map((r) => (isCeo ? r : { ...r, avg_purchase_rate: null }));
   const lowStock = rows.filter((r) => r.reorder_level != null && (r.total_qty ?? 0) < r.reorder_level);
 
   const ninetyDaysOut = new Date();
@@ -42,13 +45,13 @@ export default async function InventoryPage() {
           <TabsTrigger value="expiring">Expiring Soon ({expiringSoon.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="all">
-          <InventoryTable rows={rows} />
+          <InventoryTable rows={rows} isCeo={isCeo} userId={userId} />
         </TabsContent>
         <TabsContent value="low-stock">
-          <InventoryTable rows={lowStock} />
+          <InventoryTable rows={lowStock} isCeo={isCeo} userId={userId} />
         </TabsContent>
         <TabsContent value="expiring">
-          <InventoryTable rows={expiringSoon} />
+          <InventoryTable rows={expiringSoon} isCeo={isCeo} userId={userId} />
         </TabsContent>
       </Tabs>
     </div>
