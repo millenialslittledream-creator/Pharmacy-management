@@ -3,6 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { requireOrgId } from "@/lib/actions/require-org";
 import { sanitizeSearchTerm } from "@/lib/search";
+import {
+  resolveTemplate,
+  type TemplateField,
+} from "@/lib/stock-template";
+import type { Json } from "@/lib/supabase/types";
 
 export async function searchMedicines(query: string) {
   const { supabase, orgId } = await requireOrgId();
@@ -115,10 +120,81 @@ export type BulkImportRow = {
   unit?: string;
   pack_size?: string;
   supplier_name?: string;
+  category?: string;
+  schedule_category?: string;
+  tax_rate?: number;
+  reorder_level?: number;
+  barcode?: string;
+  custom?: Record<string, string | number>;
 };
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+export async function getStockTemplate(): Promise<TemplateField[]> {
+  const { supabase, orgId } = await requireOrgId();
+  const { data } = await supabase
+    .from("organizations")
+    .select("stock_template")
+    .eq("id", orgId)
+    .single();
+  return resolveTemplate(data?.stock_template);
+}
+
+// Only the CEO can reshape the template (also enforced by RLS on organizations).
+export async function saveStockTemplate(fields: TemplateField[]) {
+  const { supabase, orgId, role } = await requireOrgId();
+  if (role !== "ceo") throw new Error("Only the CEO can change the stock template");
+
+  const resolved = resolveTemplate(fields);
+  const { error } = await supabase
+    .from("organizations")
+    .update({ stock_template: resolved as unknown as Json })
+    .eq("id", orgId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/inventory");
+  revalidatePath("/inventory/import");
+  return resolved;
+}
+
+function checkImportRow(row: BulkImportRow, index: number) {
+  const where = `Row ${index + 1}`;
+  if (!row.name?.trim() || !row.batch_no?.trim()) throw new Error(`${where}: name and batch no are required`);
+  if (!ISO_DATE.test(row.expiry_date ?? "")) throw new Error(`${where}: expiry date must be YYYY-MM-DD`);
+  if (row.mfg_date && !ISO_DATE.test(row.mfg_date)) throw new Error(`${where}: mfg date must be YYYY-MM-DD`);
+  for (const [label, value] of [
+    ["quantity", row.qty],
+    ["purchase rate", row.purchase_rate],
+    ["sale rate", row.sale_rate],
+    ["MRP", row.mrp],
+    ["reorder level", row.reorder_level],
+  ] as const) {
+    if (value != null && (!Number.isFinite(value) || value < 0)) {
+      throw new Error(`${where}: ${label} must be a number, 0 or more`);
+    }
+  }
+  if (row.tax_rate != null && (!Number.isFinite(row.tax_rate) || row.tax_rate < 0 || row.tax_rate > 100)) {
+    throw new Error(`${where}: GST % must be between 0 and 100`);
+  }
+}
+
+// Keep only values for custom fields that exist in the org's template.
+function pickCustom(custom: BulkImportRow["custom"], template: TemplateField[]) {
+  const out: Record<string, string | number> = {};
+  for (const field of template) {
+    if (!field.custom) continue;
+    const value = custom?.[field.key];
+    if (value === undefined || value === "") continue;
+    out[field.key] = typeof value === "number" ? value : String(value).slice(0, 200);
+  }
+  return out;
+}
 
 export async function bulkImportRows(rows: BulkImportRow[]) {
   const { supabase, orgId } = await requireOrgId();
+  if (!Array.isArray(rows) || rows.length === 0) throw new Error("Nothing to import");
+  if (rows.length > 2000) throw new Error("Import at most 2000 rows at a time");
+  rows.forEach(checkImportRow);
+  const template = await getStockTemplate();
 
   const { data: existing } = await supabase
     .from("medicines")
@@ -152,6 +228,12 @@ export async function bulkImportRows(rows: BulkImportRow[]) {
           pack_size: row.pack_size,
           default_purchase_rate: row.purchase_rate,
           default_sale_rate: row.sale_rate,
+          category: row.category || undefined,
+          schedule_category: row.schedule_category || undefined,
+          tax_rate: row.tax_rate,
+          reorder_level: row.reorder_level,
+          barcode: row.barcode || undefined,
+          custom_fields: pickCustom(row.custom, template),
         })
         .select("id")
         .single();
@@ -246,6 +328,7 @@ export type EditableMedicine = {
   default_sale_rate: number | null;
   schedule_category: string | null;
   barcode: string | null;
+  custom_fields: Record<string, string | number | null>;
 };
 
 export type EditableBatch = {
@@ -267,6 +350,15 @@ export async function getMedicineForEdit(id: string) {
 }
 
 export type UpdateMedicineInput = Omit<EditableMedicine, "id">;
+
+function cleanCustomFields(raw: UpdateMedicineInput["custom_fields"]) {
+  const out: Record<string, string | number> = {};
+  for (const [key, value] of Object.entries(raw ?? {})) {
+    if (!/^custom_[a-z0-9_]{1,40}$/.test(key) || value == null || value === "") continue;
+    out[key] = typeof value === "number" ? value : String(value).slice(0, 200);
+  }
+  return out as unknown as Json;
+}
 
 export async function updateMedicine(id: string, input: UpdateMedicineInput) {
   const { supabase } = await requireCeo();
@@ -290,6 +382,7 @@ export async function updateMedicine(id: string, input: UpdateMedicineInput) {
       default_sale_rate: input.default_sale_rate,
       schedule_category: input.schedule_category || null,
       barcode: input.barcode || null,
+      custom_fields: cleanCustomFields(input.custom_fields),
     })
     .eq("id", id);
   if (error) throw new Error(error.message);

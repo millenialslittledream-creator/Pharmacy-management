@@ -23,7 +23,7 @@ export default async function InvoiceDetailPage({
     notFound();
   }
 
-  const { invoice, items } = detail;
+  const { invoice, items, charges } = detail;
   const customer = invoice.customers as unknown as { name: string; phone: string | null } | null;
   const org = invoice.organizations as unknown as {
     name: string;
@@ -145,6 +145,20 @@ export default async function InvoiceDetailPage({
             </tbody>
           </table>
 
+          {charges.length > 0 && (
+            <div className="space-y-1 border-t pt-3 text-sm">
+              <p className="text-xs font-medium uppercase text-muted-foreground">
+                Consumables / other charges
+              </p>
+              {charges.map((c) => (
+                <div key={c.id} className="flex justify-between">
+                  <span>{c.name}</span>
+                  <span>{c.amount.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="space-y-1 border-t pt-3 text-sm">
             <div className="flex justify-between">
               <span>Taxable value</span>
@@ -166,6 +180,12 @@ export default async function InvoiceDetailPage({
               <span>Discount</span>
               <span>-{invoice.discount_total.toFixed(2)}</span>
             </div>
+            {charges.length > 0 && (
+              <div className="flex justify-between">
+                <span>Consumables / other charges</span>
+                <span>+{invoice.charges_total.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-base font-semibold">
               <span>Grand total</span>
               <span>{invoice.grand_total.toFixed(2)}</span>

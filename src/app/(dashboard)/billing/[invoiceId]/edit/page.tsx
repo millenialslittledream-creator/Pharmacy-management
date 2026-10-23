@@ -18,7 +18,7 @@ export default async function EditInvoicePage({
     notFound();
   }
 
-  const { invoice, items } = detail;
+  const { invoice, items, charges } = detail;
 
   const initialItems = items.map((item) => {
     const batch = item.medicine_batches as unknown as {
@@ -48,6 +48,7 @@ export default async function EditInvoicePage({
         isFree={invoice.is_free}
         initialDiscountTotal={invoice.discount_total}
         initialItems={initialItems}
+        initialCharges={charges.map((c) => ({ name: c.name, amount: String(c.amount) }))}
       />
     </div>
   );

@@ -22,8 +22,9 @@ import {
   type EditableBatch,
   type EditableMedicine,
 } from "@/lib/actions/inventory";
+import type { TemplateField } from "@/lib/stock-template";
 
-type MedicineForm = Record<keyof Omit<EditableMedicine, "id">, string>;
+type MedicineForm = Record<keyof Omit<EditableMedicine, "id" | "custom_fields">, string>;
 type BatchForm = Record<keyof Omit<EditableBatch, "id">, string> & { id: string };
 
 const MEDICINE_FIELDS: { key: keyof MedicineForm; label: string; type?: string }[] = [
@@ -56,10 +57,19 @@ const str = (v: string | number | null | undefined) => (v == null ? "" : String(
 const num = (v: string) => (v.trim() === "" ? null : Number(v));
 
 // CEO-only: edit a medicine's details and each of its stock batches.
-export function EditMedicineDialog({ medicineId, name }: { medicineId: string; name: string }) {
+export function EditMedicineDialog({
+  medicineId,
+  name,
+  customFields,
+}: {
+  medicineId: string;
+  name: string;
+  customFields: TemplateField[];
+}) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [medicine, setMedicine] = useState<MedicineForm | null>(null);
+  const [customValues, setCustomValues] = useState<Record<string, string | number | null>>({});
   const [batches, setBatches] = useState<BatchForm[]>([]);
   const [isPending, startTransition] = useTransition();
 
@@ -67,8 +77,9 @@ export function EditMedicineDialog({ medicineId, name }: { medicineId: string; n
     setLoading(true);
     try {
       const data = await getMedicineForEdit(medicineId);
-      const { id: _id, ...m } = data.medicine;
+      const { id: _id, custom_fields, ...m } = data.medicine;
       void _id;
+      setCustomValues(custom_fields ?? {});
       setMedicine(
         Object.fromEntries(Object.entries(m).map(([k, v]) => [k, str(v as string | number | null)])) as MedicineForm,
       );
@@ -115,6 +126,7 @@ export function EditMedicineDialog({ medicineId, name }: { medicineId: string; n
           default_sale_rate: num(medicine.default_sale_rate),
           schedule_category: medicine.schedule_category,
           barcode: medicine.barcode,
+          custom_fields: customValues,
         });
         toast.success("Medicine updated");
       } catch (err) {
@@ -192,6 +204,22 @@ export function EditMedicineDialog({ medicineId, name }: { medicineId: string; n
                         type={f.type ?? "text"}
                         value={medicine[f.key]}
                         onChange={(e) => setMedicineField(f.key, e.target.value)}
+                      />
+                    </div>
+                  ))}
+                  {customFields.map((f) => (
+                    <div key={f.key} className="space-y-1.5">
+                      <Label htmlFor={`med-${f.key}`}>{f.label}</Label>
+                      <Input
+                        id={`med-${f.key}`}
+                        type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}
+                        value={customValues[f.key] == null ? "" : String(customValues[f.key])}
+                        onChange={(e) =>
+                          setCustomValues((v) => ({
+                            ...v,
+                            [f.key]: f.type === "number" && e.target.value !== "" ? Number(e.target.value) : e.target.value,
+                          }))
+                        }
                       />
                     </div>
                   ))}

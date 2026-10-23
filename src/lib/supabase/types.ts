@@ -108,6 +108,41 @@ export type Database = {
           },
         ]
       }
+      invoice_charges: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          invoice_id: string
+          name: string
+          org_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          invoice_id: string
+          name: string
+          org_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          name?: string
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_charges_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           discount_pct: number
@@ -169,6 +204,7 @@ export type Database = {
         Row: {
           amount_paid: number
           cgst_total: number
+          charges_total: number
           created_at: string
           created_by: string | null
           customer_id: string | null
@@ -191,6 +227,7 @@ export type Database = {
         Insert: {
           amount_paid?: number
           cgst_total?: number
+          charges_total?: number
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -212,6 +249,7 @@ export type Database = {
         Update: {
           amount_paid?: number
           cgst_total?: number
+          charges_total?: number
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -348,6 +386,7 @@ export type Database = {
           barcode: string | null
           category: string | null
           created_at: string
+          custom_fields: Json
           default_purchase_rate: number | null
           default_sale_rate: number | null
           generic_name: string | null
@@ -367,6 +406,7 @@ export type Database = {
           barcode?: string | null
           category?: string | null
           created_at?: string
+          custom_fields?: Json
           default_purchase_rate?: number | null
           default_sale_rate?: number | null
           generic_name?: string | null
@@ -386,6 +426,7 @@ export type Database = {
           barcode?: string | null
           category?: string | null
           created_at?: string
+          custom_fields?: Json
           default_purchase_rate?: number | null
           default_sale_rate?: number | null
           generic_name?: string | null
@@ -492,6 +533,7 @@ export type Database = {
           invoice_prefix: string
           name: string
           phone: string | null
+          stock_template: Json | null
           whatsapp_alert_number: string | null
           whatsapp_enabled: boolean
         }
@@ -504,6 +546,7 @@ export type Database = {
           invoice_prefix?: string
           name: string
           phone?: string | null
+          stock_template?: Json | null
           whatsapp_alert_number?: string | null
           whatsapp_enabled?: boolean
         }
@@ -516,6 +559,7 @@ export type Database = {
           invoice_prefix?: string
           name?: string
           phone?: string | null
+          stock_template?: Json | null
           whatsapp_alert_number?: string | null
           whatsapp_enabled?: boolean
         }
@@ -768,6 +812,7 @@ export type Database = {
           barcode: string | null
           batch_count: number | null
           category: string | null
+          custom_fields: Json | null
           default_sale_rate: number | null
           generic_name: string | null
           hsn_code: string | null
@@ -839,6 +884,7 @@ export type Database = {
       create_invoice: {
         Args: {
           p_amount_paid?: number
+          p_charges?: Json
           p_customer_id: string | null
           p_discount_total: number
           p_invoice_no: string
@@ -858,6 +904,7 @@ export type Database = {
       delete_medicines: { Args: { p_ids: string[] }; Returns: Json }
       edit_invoice: {
         Args: {
+          p_charges?: Json
           p_discount_total: number
           p_invoice_id: string
           p_items: Json

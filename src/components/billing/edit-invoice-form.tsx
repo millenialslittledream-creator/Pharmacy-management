@@ -24,6 +24,12 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MedicineCombobox, type MedicineOption } from "@/components/inventory/medicine-combobox";
+import {
+  ChargesEditor,
+  chargesSum,
+  parseCharges,
+  type ChargeRow,
+} from "@/components/billing/charges-editor";
 import { editInvoice, listAvailableBatches, type InvoiceLineInput } from "@/lib/actions/billing";
 
 type Batch = { id: string; batch_no: string; expiry_date: string; sale_rate: number; qty_in_stock: number };
@@ -42,11 +48,13 @@ export function EditInvoiceForm({
   isFree,
   initialDiscountTotal,
   initialItems,
+  initialCharges,
 }: {
   invoiceId: string;
   isFree: boolean;
   initialDiscountTotal: number;
   initialItems: EditLine[];
+  initialCharges: ChargeRow[];
 }) {
   const router = useRouter();
   const [stagedMedicine, setStagedMedicine] = useState<MedicineOption | null>(null);
@@ -55,6 +63,7 @@ export function EditInvoiceForm({
   const [stagedQty, setStagedQty] = useState("1");
 
   const [cart, setCart] = useState<EditLine[]>(initialItems);
+  const [chargeRows, setChargeRows] = useState<ChargeRow[]>(initialCharges);
   const [billDiscount, setBillDiscount] = useState(String(initialDiscountTotal));
   const [isPending, startTransition] = useTransition();
 
@@ -111,10 +120,16 @@ export function EditInvoiceForm({
     0,
   );
   const discount = isFree ? 0 : Number(billDiscount) || 0;
-  const grandTotal = isFree ? 0 : Math.max(0, subtotal - discount);
+  const chargesTotal = isFree ? 0 : chargesSum(chargeRows);
+  const grandTotal = isFree ? 0 : Math.max(0, subtotal - discount) + chargesTotal;
 
   function handleSave() {
-    if (cart.length === 0) {
+    const { charges, error: chargesError } = parseCharges(isFree ? [] : chargeRows);
+    if (chargesError) {
+      toast.error(chargesError);
+      return;
+    }
+    if (cart.length === 0 && charges.length === 0) {
       toast.error("An invoice must have at least one item");
       return;
     }
@@ -127,7 +142,7 @@ export function EditInvoiceForm({
 
     startTransition(async () => {
       try {
-        await editInvoice(invoiceId, { items, discountTotal: discount });
+        await editInvoice(invoiceId, { items, discountTotal: discount, charges });
         toast.success("Invoice updated");
         router.push(`/billing/${invoiceId}`);
         router.refresh();
@@ -230,6 +245,8 @@ export function EditInvoiceForm({
           </TableBody>
         </Table>
 
+        {!isFree && <ChargesEditor rows={chargeRows} onChange={setChargeRows} />}
+
         {!isFree && (
           <div className="max-w-xs space-y-1.5">
             <Label>Bill discount (flat)</Label>
@@ -246,6 +263,12 @@ export function EditInvoiceForm({
             <span>Discount</span>
             <span>-{discount.toFixed(2)}</span>
           </div>
+          {chargesTotal > 0 && (
+            <div className="flex justify-between">
+              <span>Consumables / other charges</span>
+              <span>+{chargesTotal.toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-base font-semibold">
             <span>Grand total</span>
             <span>{grandTotal.toFixed(2)}</span>

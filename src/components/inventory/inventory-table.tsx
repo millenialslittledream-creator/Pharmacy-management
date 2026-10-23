@@ -27,6 +27,7 @@ import { ColumnCustomizer } from "@/components/ui/column-customizer";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { deleteMedicines } from "@/lib/actions/inventory";
 import { useColumnPrefs } from "@/lib/use-column-prefs";
+import type { TemplateField } from "@/lib/stock-template";
 import type { Tables } from "@/lib/supabase/types";
 
 export type StockRow = Tables<"medicine_stock_summary">;
@@ -135,17 +136,31 @@ export function InventoryTable({
   rows,
   isCeo,
   userId,
+  customFields,
 }: {
   rows: StockRow[];
   isCeo: boolean;
   userId: string;
+  customFields: TemplateField[];
 }) {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  const available = useMemo(() => COLUMNS.filter((c) => isCeo || !c.ceoOnly), [isCeo]);
+  // CEO-defined template fields show up as extra optional columns.
+  const available = useMemo(() => {
+    const custom: ColumnDef[] = customFields.map((field) => ({
+      id: `custom:${field.key}`,
+      label: field.label,
+      align: field.type === "number" ? "right" : undefined,
+      cell: (row) => {
+        const value = (row.custom_fields as Record<string, unknown> | null)?.[field.key];
+        return value == null || value === "" ? "—" : String(value);
+      },
+    }));
+    return [...COLUMNS.filter((c) => isCeo || !c.ceoOnly), ...custom];
+  }, [isCeo, customFields]);
   const { columns: visibleIds, save, reset } = useColumnPrefs(
     `inventory-columns:v1:${userId}`,
     DEFAULT_COLUMNS,
@@ -281,7 +296,7 @@ export function InventoryTable({
                 ))}
                 <TableCell>
                   <div className="flex items-center justify-end gap-1">
-                    {isCeo && <EditMedicineDialog medicineId={id} name={row.name ?? "medicine"} />}
+                    {isCeo && <EditMedicineDialog medicineId={id} name={row.name ?? "medicine"} customFields={customFields} />}
                     <AddBatchDialog
                       preselected={{
                         id,

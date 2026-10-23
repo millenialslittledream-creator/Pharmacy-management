@@ -2,13 +2,16 @@ import Link from "next/link";
 import { requireOrgId } from "@/lib/actions/require-org";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AddMedicineDialog } from "@/components/inventory/add-medicine-dialog";
+import { AddStockDialog } from "@/components/inventory/add-stock-dialog";
+import { StockTemplateDialog } from "@/components/inventory/stock-template-dialog";
+import { getStockTemplate } from "@/lib/actions/inventory";
 import { AddBatchDialog } from "@/components/inventory/add-batch-dialog";
 import { InventoryTable, type StockRow } from "@/components/inventory/inventory-table";
 
 export default async function InventoryPage() {
   const { supabase, userId, role } = await requireOrgId();
   const isCeo = role === "ceo";
+  const template = await getStockTemplate();
   const { data } = await supabase
     .from("medicine_stock_summary")
     .select("*")
@@ -27,14 +30,15 @@ export default async function InventoryPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-semibold tracking-tight">Inventory</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
             <Link href="/inventory/import">Bulk Import</Link>
           </Button>
           <AddBatchDialog />
-          <AddMedicineDialog />
+          {isCeo && <StockTemplateDialog fields={template} />}
+          <AddStockDialog fields={template} />
         </div>
       </div>
 
@@ -45,13 +49,13 @@ export default async function InventoryPage() {
           <TabsTrigger value="expiring">Expiring Soon ({expiringSoon.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="all">
-          <InventoryTable rows={rows} isCeo={isCeo} userId={userId} />
+          <InventoryTable rows={rows} isCeo={isCeo} userId={userId} customFields={template.filter((f) => f.custom)} />
         </TabsContent>
         <TabsContent value="low-stock">
-          <InventoryTable rows={lowStock} isCeo={isCeo} userId={userId} />
+          <InventoryTable rows={lowStock} isCeo={isCeo} userId={userId} customFields={template.filter((f) => f.custom)} />
         </TabsContent>
         <TabsContent value="expiring">
-          <InventoryTable rows={expiringSoon} isCeo={isCeo} userId={userId} />
+          <InventoryTable rows={expiringSoon} isCeo={isCeo} userId={userId} customFields={template.filter((f) => f.custom)} />
         </TabsContent>
       </Tabs>
     </div>

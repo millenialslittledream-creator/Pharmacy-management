@@ -52,7 +52,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </Button>
         </form>
       </aside>
-      <main className="flex-1 p-6 lg:p-8 print:p-0">{children}</main>
+      <main className="min-w-0 flex-1 p-6 lg:p-8 print:p-0">{children}</main>
     </div>
   );
 }

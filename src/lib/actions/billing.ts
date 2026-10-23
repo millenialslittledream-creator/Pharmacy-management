@@ -71,13 +71,15 @@ export type InvoiceLineInput = {
   prescription_ref?: string;
 };
 
+export type InvoiceChargeInput = { name: string; amount: number };
+
 export async function getInvoiceDetail(invoiceId: string) {
   const { supabase } = await requireOrgId();
 
   const { data: invoice, error: invoiceError } = await supabase
     .from("invoices")
     .select(
-      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, taxable_value, cgst_total, sgst_total, is_free, edited_at, amount_paid, payment_due_at, is_pending, customers(name, phone), organizations(name, gstin, address, phone), biller:profiles!invoices_created_by_fkey(full_name), editor:profiles!invoices_edited_by_fkey(full_name)",
+      "id, invoice_no, created_at, payment_mode, status, grand_total, discount_total, taxable_value, cgst_total, sgst_total, charges_total, is_free, edited_at, amount_paid, payment_due_at, is_pending, customers(name, phone), organizations(name, gstin, address, phone), biller:profiles!invoices_created_by_fkey(full_name), editor:profiles!invoices_edited_by_fkey(full_name)",
     )
     .eq("id", invoiceId)
     .single();
@@ -91,17 +93,24 @@ export async function getInvoiceDetail(invoiceId: string) {
     .eq("invoice_id", invoiceId);
   if (itemsError) throw itemsError;
 
-  return { invoice, items };
+  const { data: charges, error: chargesError } = await supabase
+    .from("invoice_charges")
+    .select("id, name, amount")
+    .eq("invoice_id", invoiceId)
+    .order("created_at");
+  if (chargesError) throw chargesError;
+
+  return { invoice, items, charges };
 }
 
 export async function getInvoiceForEdit(invoiceId: string) {
   const { role } = await requireOrgId();
   if (role !== "ceo" && role !== "pharmacist") throw new Error("Not authorized to edit invoices");
 
-  const { invoice, items } = await getInvoiceDetail(invoiceId);
+  const { invoice, items, charges } = await getInvoiceDetail(invoiceId);
   if (invoice.status === "returned") throw new Error("Cannot edit a returned invoice");
 
-  return { invoice, items };
+  return { invoice, items, charges };
 }
 
 function generateInvoiceNo(prefix: string) {
@@ -114,6 +123,7 @@ export async function submitInvoice(input: {
   paymentMode: PaymentMode;
   discountTotal: number;
   items: InvoiceLineInput[];
+  charges?: InvoiceChargeInput[];
   isFree?: boolean;
   amountPaid?: number;
   paymentDueAt?: string;
@@ -137,6 +147,7 @@ export async function submitInvoice(input: {
     p_is_free: input.isFree ?? false,
     p_amount_paid: input.amountPaid,
     p_payment_due_at: input.paymentDueAt || undefined,
+    p_charges: input.isFree ? undefined : (input.charges ?? []),
   });
 
   if (error) throw error;
@@ -168,10 +179,10 @@ async function notifyInvoiceByWhatsApp(orgId: string, customerId: string, invoic
     .single();
   if (!customer?.phone) return;
 
-  const { invoice, items } = await getInvoiceDetail(invoiceId);
+  const { invoice, items, charges } = await getInvoiceDetail(invoiceId);
   const biller = invoice.biller as unknown as { full_name: string } | null;
 
-  const pdfBuffer = await generateInvoicePdf(invoice, items, org, customer, biller?.full_name ?? null);
+  const pdfBuffer = await generateInvoicePdf(invoice, items, org, customer, biller?.full_name ?? null, charges);
 
   const pendingAmount = invoice.grand_total - invoice.amount_paid;
   const billLine = invoice.is_free
@@ -262,7 +273,7 @@ export async function recordPayment(invoiceId: string, amount: number, method: P
 
 export async function editInvoice(
   invoiceId: string,
-  input: { items: InvoiceLineInput[]; discountTotal: number },
+  input: { items: InvoiceLineInput[]; discountTotal: number; charges?: InvoiceChargeInput[] },
 ) {
   const { supabase, orgId, role } = await requireOrgId();
   if (role !== "ceo" && role !== "pharmacist") throw new Error("Not authorized to edit invoices");
@@ -270,6 +281,7 @@ export async function editInvoice(
   const { error } = await supabase.rpc("edit_invoice", {
     p_invoice_id: invoiceId,
     p_discount_total: input.discountTotal,
+    p_charges: input.charges ?? [],
     p_items: input.items.map((item) => ({
       medicine_batch_id: item.medicine_batch_id,
       qty: item.qty,

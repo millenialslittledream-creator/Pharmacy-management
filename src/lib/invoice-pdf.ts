@@ -24,8 +24,11 @@ type InvoiceData = {
   taxable_value: number;
   cgst_total: number;
   sgst_total: number;
+  charges_total?: number;
   is_free?: boolean;
 };
+
+type InvoiceCharge = { name: string; amount: number };
 
 type OrgData = { name: string; gstin: string | null; address: string | null; phone: string | null };
 type CustomerData = { name: string; phone: string | null } | null;
@@ -42,6 +45,7 @@ export async function generateInvoicePdf(
   org: OrgData,
   customer: CustomerData,
   billedBy?: string | null,
+  charges: InvoiceCharge[] = [],
 ): Promise<Buffer> {
   const doc = new PDFDocument({ size: "A4", margin: 40 });
   const chunks: Buffer[] = [];
@@ -151,6 +155,20 @@ export async function generateInvoicePdf(
   doc.moveTo(LEFT, y).lineTo(RIGHT, y).strokeColor(LIGHT_RULE).lineWidth(1).stroke();
   y += 12;
 
+  if (charges.length > 0) {
+    doc.fillColor(GRAY).font("Helvetica-Bold").fontSize(8);
+    doc.text("CONSUMABLES / OTHER CHARGES", col.name, y, { width: 280 });
+    y += 14;
+    charges.forEach((charge) => {
+      doc.fillColor("#111").font("Helvetica").fontSize(8.5);
+      doc.text(charge.name, col.name, y, { width: 330 });
+      doc.font("Helvetica-Bold").text(charge.amount.toFixed(2), col.total, y, { width: colW.total, align: "right" });
+      y += 16;
+    });
+    doc.moveTo(LEFT, y).lineTo(RIGHT, y).strokeColor(LIGHT_RULE).lineWidth(1).stroke();
+    y += 12;
+  }
+
   const totalsLine = (label: string, value: string, bold = false) => {
     doc.fillColor(bold ? "#111" : GRAY).font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(bold ? 11 : 9);
     doc.text(label, 360, y, { width: 110, align: "left" });
@@ -163,6 +181,9 @@ export async function generateInvoicePdf(
     totalsLine("SGST", invoice.sgst_total.toFixed(2));
   }
   totalsLine("Discount", `-${invoice.discount_total.toFixed(2)}`);
+  if (charges.length > 0) {
+    totalsLine("Consumables / other", `+${charges.reduce((s, c) => s + c.amount, 0).toFixed(2)}`);
+  }
   doc.moveTo(360, y).lineTo(RIGHT, y).strokeColor(LIGHT_RULE).lineWidth(1).stroke();
   y += 6;
   totalsLine("Grand total", invoice.grand_total.toFixed(2), true);

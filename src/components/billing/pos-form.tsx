@@ -26,6 +26,12 @@ import { MedicineCombobox, type MedicineOption } from "@/components/inventory/me
 import { CustomerCombobox, type CustomerOption } from "@/components/billing/customer-combobox";
 import { QuickAddPanel, type QuickPick } from "@/components/billing/quick-add-panel";
 import {
+  ChargesEditor,
+  chargesSum,
+  parseCharges,
+  type ChargeRow,
+} from "@/components/billing/charges-editor";
+import {
   createQuickCustomer,
   listAvailableBatches,
   submitInvoice,
@@ -70,6 +76,7 @@ export function PosForm({
   const [leadName, setLeadName] = useState("");
   const [leadPhone, setLeadPhone] = useState("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("cash");
+  const [chargeRows, setChargeRows] = useState<ChargeRow[]>([]);
   const [billDiscount, setBillDiscount] = useState("0");
   const [amountPaidOverride, setAmountPaidOverride] = useState("");
   const [paymentDueAt, setPaymentDueAt] = useState("");
@@ -161,12 +168,18 @@ export function PosForm({
     0,
   );
   const discount = Number(billDiscount) || 0;
-  const grandTotal = Math.max(0, subtotal - discount);
+  const chargesTotal = chargesSum(chargeRows);
+  const grandTotal = Math.max(0, subtotal - discount) + chargesTotal;
   const amountPaid = amountPaidOverride.trim() === "" ? grandTotal : Math.max(0, Number(amountPaidOverride) || 0);
   const pendingAmount = Math.max(0, grandTotal - amountPaid);
 
   function handleSubmit(isFree = false) {
-    if (cart.length === 0) {
+    const { charges, error: chargesError } = parseCharges(chargeRows);
+    if (chargesError) {
+      toast.error(chargesError);
+      return;
+    }
+    if (cart.length === 0 && (isFree || charges.length === 0)) {
       toast.error("Add at least one item to the bill");
       return;
     }
@@ -196,6 +209,7 @@ export function PosForm({
           paymentMode,
           discountTotal: isFree ? 0 : discount,
           items,
+          charges: isFree ? undefined : charges,
           isFree,
           amountPaid: isFree ? undefined : amountPaid,
           paymentDueAt: !isFree && pendingAmount > 0 && paymentDueAt ? new Date(paymentDueAt).toISOString() : undefined,
@@ -367,6 +381,7 @@ export function PosForm({
               />
             </div>
           )}
+          <ChargesEditor rows={chargeRows} onChange={setChargeRows} />
           <div className="space-y-1.5">
             <Label>Payment mode</Label>
             <Select value={paymentMode} onValueChange={(v) => setPaymentMode(v as PaymentMode)}>
@@ -424,6 +439,12 @@ export function PosForm({
               <span>Discount</span>
               <span>-{discount.toFixed(2)}</span>
             </div>
+            {chargesTotal > 0 && (
+              <div className="flex justify-between">
+                <span>Consumables / other charges</span>
+                <span>+{chargesTotal.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-base font-semibold">
               <span>Grand total</span>
               <span>{grandTotal.toFixed(2)}</span>
