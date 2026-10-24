@@ -3,11 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { requireOrgId } from "@/lib/actions/require-org";
 import { sanitizeSearchTerm } from "@/lib/search";
+import { parseMonthYear } from "@/lib/dates";
 import {
   resolveTemplate,
   type TemplateField,
 } from "@/lib/stock-template";
 import type { Json } from "@/lib/supabase/types";
+
+// Production hides the text of thrown server-action errors, so actions the
+// user acts on return their errors instead of throwing them.
+export type ActionResult<T = object> = ({ ok: true } & T) | { ok: false; error: string };
+
+function fail(err: unknown): { ok: false; error: string } {
+  return { ok: false, error: err instanceof Error ? err.message : "Something went wrong" };
+}
 
 export async function searchMedicines(query: string) {
   const { supabase, orgId } = await requireOrgId();
@@ -83,26 +92,53 @@ export type CreateBatchInput = {
   supplier_id?: string;
 };
 
-export async function createBatch(input: CreateBatchInput) {
-  const { supabase, orgId } = await requireOrgId();
+export async function createBatch(input: CreateBatchInput): Promise<ActionResult<{ id: string }>> {
+  try {
+    const { supabase, orgId } = await requireOrgId();
 
-  const { data, error } = await supabase
-    .from("medicine_batches")
-    .insert({ ...input, org_id: orgId })
-    .select("id")
-    .single();
+    const expiry = parseMonthYear(input.expiry_date, "expiry");
+    if ("error" in expiry) return { ok: false, error: expiry.error };
+    let mfgDate: string | null = null;
+    if (input.mfg_date) {
+      const mfg = parseMonthYear(input.mfg_date, "mfg");
+      if ("error" in mfg) return { ok: false, error: mfg.error };
+      mfgDate = mfg.date;
+    }
+    if (!input.batch_no?.trim()) return { ok: false, error: "Batch number is required" };
+    for (const value of [input.qty_in_stock, input.purchase_rate, input.sale_rate, input.mrp ?? 0]) {
+      if (!Number.isFinite(value) || value < 0) return { ok: false, error: "Rates and quantity must be 0 or more" };
+    }
 
-  if (error) throw error;
+    const { data, error } = await supabase
+      .from("medicine_batches")
+      .insert({
+        org_id: orgId,
+        medicine_id: input.medicine_id,
+        batch_no: input.batch_no.trim(),
+        mfg_date: mfgDate,
+        expiry_date: expiry.date,
+        mrp: input.mrp,
+        purchase_rate: input.purchase_rate,
+        sale_rate: input.sale_rate,
+        qty_in_stock: input.qty_in_stock,
+        supplier_id: input.supplier_id,
+      })
+      .select("id")
+      .single();
+    if (error) return { ok: false, error: error.message };
 
-  await supabase.from("stock_movements").insert({
-    org_id: orgId,
-    batch_id: data.id,
-    change_qty: input.qty_in_stock,
-    reason: "purchase",
-  });
+    await supabase.from("stock_movements").insert({
+      org_id: orgId,
+      batch_id: data.id,
+      change_qty: input.qty_in_stock,
+      reason: "purchase",
+    });
 
-  revalidatePath("/inventory");
-  return data;
+    revalidatePath("/inventory");
+    return { ok: true, id: data.id };
+  } catch (err) {
+    return fail(err);
+  }
 }
 
 export type BulkImportRow = {
@@ -128,8 +164,6 @@ export type BulkImportRow = {
   custom?: Record<string, string | number>;
 };
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
 export async function getStockTemplate(): Promise<TemplateField[]> {
   const { supabase, orgId } = await requireOrgId();
   const { data } = await supabase
@@ -141,26 +175,37 @@ export async function getStockTemplate(): Promise<TemplateField[]> {
 }
 
 // Only the CEO can reshape the template (also enforced by RLS on organizations).
-export async function saveStockTemplate(fields: TemplateField[]) {
-  const { supabase, orgId, role } = await requireOrgId();
-  if (role !== "ceo") throw new Error("Only the CEO can change the stock template");
+export async function saveStockTemplate(fields: TemplateField[]): Promise<ActionResult<{ fields: TemplateField[] }>> {
+  try {
+    const { supabase, orgId, role } = await requireOrgId();
+    if (role !== "ceo") return { ok: false, error: "Only the CEO can change the stock template" };
 
-  const resolved = resolveTemplate(fields);
-  const { error } = await supabase
-    .from("organizations")
-    .update({ stock_template: resolved as unknown as Json })
-    .eq("id", orgId);
-  if (error) throw new Error(error.message);
-  revalidatePath("/inventory");
-  revalidatePath("/inventory/import");
-  return resolved;
+    const resolved = resolveTemplate(fields);
+    const { error } = await supabase
+      .from("organizations")
+      .update({ stock_template: resolved as unknown as Json })
+      .eq("id", orgId);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/inventory");
+    revalidatePath("/inventory/import");
+    return { ok: true, fields: resolved };
+  } catch (err) {
+    return fail(err);
+  }
 }
 
 function checkImportRow(row: BulkImportRow, index: number) {
   const where = `Row ${index + 1}`;
   if (!row.name?.trim() || !row.batch_no?.trim()) throw new Error(`${where}: name and batch no are required`);
-  if (!ISO_DATE.test(row.expiry_date ?? "")) throw new Error(`${where}: expiry date must be YYYY-MM-DD`);
-  if (row.mfg_date && !ISO_DATE.test(row.mfg_date)) throw new Error(`${where}: mfg date must be YYYY-MM-DD`);
+  // Accept the date styles people actually use (06-2027, 30-06-2027, Jun-27…)
+  const expiry = parseMonthYear(row.expiry_date, "expiry");
+  if ("error" in expiry) throw new Error(`${where}: ${expiry.error}`);
+  row.expiry_date = expiry.date;
+  if (row.mfg_date) {
+    const mfg = parseMonthYear(row.mfg_date, "mfg");
+    if ("error" in mfg) throw new Error(`${where}: ${mfg.error}`);
+    row.mfg_date = mfg.date;
+  }
   for (const [label, value] of [
     ["quantity", row.qty],
     ["purchase rate", row.purchase_rate],
@@ -189,7 +234,22 @@ function pickCustom(custom: BulkImportRow["custom"], template: TemplateField[]) 
   return out;
 }
 
-export async function bulkImportRows(rows: BulkImportRow[]) {
+export type BulkImportResult =
+  | { ok: true; created: number; matched: number; batchesCreated: number }
+  | { ok: false; error: string };
+
+// Returns the error instead of throwing: in production Next hides thrown
+// server-action messages, which left users with a meaningless generic error.
+export async function bulkImportRows(rows: BulkImportRow[]): Promise<BulkImportResult> {
+  try {
+    return { ok: true, ...(await runBulkImport(rows)) };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Import failed";
+    return { ok: false, error: message };
+  }
+}
+
+async function runBulkImport(rows: BulkImportRow[]) {
   const { supabase, orgId } = await requireOrgId();
   if (!Array.isArray(rows) || rows.length === 0) throw new Error("Nothing to import");
   if (rows.length > 2000) throw new Error("Import at most 2000 rows at a time");
@@ -342,11 +402,18 @@ export type EditableBatch = {
   qty_in_stock: number;
 };
 
-export async function getMedicineForEdit(id: string) {
-  const { supabase } = await requireCeo();
-  const { data, error } = await supabase.rpc("get_medicine_for_edit", { p_id: id });
-  if (error) throw new Error(error.message);
-  return data as unknown as { medicine: EditableMedicine; batches: EditableBatch[] };
+export async function getMedicineForEdit(
+  id: string,
+): Promise<ActionResult<{ medicine: EditableMedicine; batches: EditableBatch[] }>> {
+  try {
+    const { supabase } = await requireCeo();
+    const { data, error } = await supabase.rpc("get_medicine_for_edit", { p_id: id });
+    if (error) return { ok: false, error: error.message };
+    const parsed = data as unknown as { medicine: EditableMedicine; batches: EditableBatch[] };
+    return { ok: true, ...parsed };
+  } catch (err) {
+    return fail(err);
+  }
 }
 
 export type UpdateMedicineInput = Omit<EditableMedicine, "id">;
@@ -360,64 +427,96 @@ function cleanCustomFields(raw: UpdateMedicineInput["custom_fields"]) {
   return out as unknown as Json;
 }
 
-export async function updateMedicine(id: string, input: UpdateMedicineInput) {
-  const { supabase } = await requireCeo();
-  const name = input.name?.trim();
-  if (!name) throw new Error("Name is required");
-  if ((input.reorder_level ?? 0) < 0) throw new Error("Reorder level cannot be negative");
+export async function updateMedicine(id: string, input: UpdateMedicineInput): Promise<ActionResult> {
+  try {
+    const { supabase } = await requireCeo();
+    const name = input.name?.trim();
+    if (!name) return { ok: false, error: "Name is required" };
+    if ((input.reorder_level ?? 0) < 0) return { ok: false, error: "Reorder level cannot be negative" };
 
-  const { error } = await supabase
-    .from("medicines")
-    .update({
-      name,
-      generic_name: input.generic_name || null,
-      manufacturer: input.manufacturer || null,
-      category: input.category || null,
-      unit: input.unit || null,
-      pack_size: input.pack_size || null,
-      hsn_code: input.hsn_code || null,
-      tax_rate: input.tax_rate,
-      reorder_level: input.reorder_level ?? 0,
-      default_purchase_rate: input.default_purchase_rate,
-      default_sale_rate: input.default_sale_rate,
-      schedule_category: input.schedule_category || null,
-      barcode: input.barcode || null,
-      custom_fields: cleanCustomFields(input.custom_fields),
-    })
-    .eq("id", id);
-  if (error) throw new Error(error.message);
-  revalidatePath("/inventory");
+    const { error } = await supabase
+      .from("medicines")
+      .update({
+        name,
+        generic_name: input.generic_name || null,
+        manufacturer: input.manufacturer || null,
+        category: input.category || null,
+        unit: input.unit || null,
+        pack_size: input.pack_size || null,
+        hsn_code: input.hsn_code || null,
+        tax_rate: input.tax_rate,
+        reorder_level: input.reorder_level ?? 0,
+        default_purchase_rate: input.default_purchase_rate,
+        default_sale_rate: input.default_sale_rate,
+        schedule_category: input.schedule_category || null,
+        barcode: input.barcode || null,
+        custom_fields: cleanCustomFields(input.custom_fields),
+      })
+      .eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/inventory");
+    return { ok: true };
+  } catch (err) {
+    return fail(err);
+  }
 }
 
-export async function updateBatch(id: string, input: Omit<EditableBatch, "id">) {
-  const { supabase } = await requireCeo();
-  const { error } = await supabase.rpc("update_batch", {
-    p_batch_id: id,
-    p_batch_no: input.batch_no,
-    p_mfg_date: input.mfg_date ?? (null as unknown as string),
-    p_expiry_date: input.expiry_date,
-    p_mrp: input.mrp ?? (null as unknown as number),
-    p_purchase_rate: input.purchase_rate,
-    p_sale_rate: input.sale_rate,
-    p_qty: input.qty_in_stock,
-    p_supplier_id: null as unknown as string,
-  });
-  if (error) throw new Error(error.message);
-  revalidatePath("/inventory");
+export async function updateBatch(id: string, input: Omit<EditableBatch, "id">): Promise<ActionResult> {
+  try {
+    const { supabase } = await requireCeo();
+
+    const expiry = parseMonthYear(input.expiry_date, "expiry");
+    if ("error" in expiry) return { ok: false, error: expiry.error };
+    let mfgDate: string | null = null;
+    if (input.mfg_date) {
+      const mfg = parseMonthYear(input.mfg_date, "mfg");
+      if ("error" in mfg) return { ok: false, error: mfg.error };
+      mfgDate = mfg.date;
+    }
+    if (!input.batch_no?.trim()) return { ok: false, error: "Batch number is required" };
+    for (const value of [input.qty_in_stock, input.purchase_rate, input.sale_rate, input.mrp ?? 0]) {
+      if (!Number.isFinite(value) || value < 0) return { ok: false, error: "Rates and quantity must be 0 or more" };
+    }
+
+    const { error } = await supabase.rpc("update_batch", {
+      p_batch_id: id,
+      p_batch_no: input.batch_no,
+      p_mfg_date: mfgDate ?? (null as unknown as string),
+      p_expiry_date: expiry.date,
+      p_mrp: input.mrp ?? (null as unknown as number),
+      p_purchase_rate: input.purchase_rate,
+      p_sale_rate: input.sale_rate,
+      p_qty: input.qty_in_stock,
+      p_supplier_id: null as unknown as string,
+    });
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/inventory");
+    return { ok: true };
+  } catch (err) {
+    return fail(err);
+  }
 }
 
-export async function deleteMedicines(ids: string[]) {
-  const { supabase } = await requireCeo();
-  const { data, error } = await supabase.rpc("delete_medicines", { p_ids: ids });
-  if (error) throw new Error(error.message);
-  revalidatePath("/inventory");
-  return data as unknown as { deleted: number; archived: number };
+export async function deleteMedicines(ids: string[]): Promise<ActionResult<{ deleted: number; archived: number }>> {
+  try {
+    const { supabase } = await requireCeo();
+    const { data, error } = await supabase.rpc("delete_medicines", { p_ids: ids });
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/inventory");
+    return { ok: true, ...(data as unknown as { deleted: number; archived: number }) };
+  } catch (err) {
+    return fail(err);
+  }
 }
 
-export async function deleteBatches(ids: string[]) {
-  const { supabase } = await requireCeo();
-  const { data, error } = await supabase.rpc("delete_batches", { p_ids: ids });
-  if (error) throw new Error(error.message);
-  revalidatePath("/inventory");
-  return data as unknown as { deleted: number; zeroed: number };
+export async function deleteBatches(ids: string[]): Promise<ActionResult<{ deleted: number; zeroed: number }>> {
+  try {
+    const { supabase } = await requireCeo();
+    const { data, error } = await supabase.rpc("delete_batches", { p_ids: ids });
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/inventory");
+    return { ok: true, ...(data as unknown as { deleted: number; zeroed: number }) };
+  } catch (err) {
+    return fail(err);
+  }
 }

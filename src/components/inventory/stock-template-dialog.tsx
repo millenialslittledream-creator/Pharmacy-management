@@ -73,7 +73,11 @@ export function StockTemplateDialog({ fields }: { fields: TemplateField[] }) {
   function handleSave() {
     startTransition(async () => {
       try {
-        await saveStockTemplate(draft);
+        const result = await saveStockTemplate(draft);
+        if (!result.ok) {
+          toast.error(result.error);
+          return;
+        }
         toast.success("Template saved — the add form and CSV template now use it");
         setOpen(false);
       } catch (err) {

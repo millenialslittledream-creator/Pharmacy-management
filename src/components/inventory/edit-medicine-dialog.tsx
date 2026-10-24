@@ -23,6 +23,8 @@ import {
   type EditableMedicine,
 } from "@/lib/actions/inventory";
 import type { TemplateField } from "@/lib/stock-template";
+import { MonthYearInput } from "@/components/ui/month-year-input";
+import { formatMonthYear } from "@/lib/dates";
 
 type MedicineForm = Record<keyof Omit<EditableMedicine, "id" | "custom_fields">, string>;
 type BatchForm = Record<keyof Omit<EditableBatch, "id">, string> & { id: string };
@@ -46,8 +48,8 @@ const MEDICINE_FIELDS: { key: keyof MedicineForm; label: string; type?: string }
 const BATCH_FIELDS: { key: keyof Omit<BatchForm, "id">; label: string; type?: string }[] = [
   { key: "batch_no", label: "Batch no" },
   { key: "qty_in_stock", label: "Qty", type: "number" },
-  { key: "expiry_date", label: "Expiry", type: "date" },
-  { key: "mfg_date", label: "Mfg", type: "date" },
+  { key: "expiry_date", label: "Expiry (MM-YYYY)", type: "month" },
+  { key: "mfg_date", label: "Mfg (MM-YYYY)", type: "month" },
   { key: "mrp", label: "MRP", type: "number" },
   { key: "purchase_rate", label: "Purchase", type: "number" },
   { key: "sale_rate", label: "Sale", type: "number" },
@@ -77,6 +79,11 @@ export function EditMedicineDialog({
     setLoading(true);
     try {
       const data = await getMedicineForEdit(medicineId);
+      if (!data.ok) {
+        toast.error(data.error);
+        setOpen(false);
+        return;
+      }
       const { id: _id, custom_fields, ...m } = data.medicine;
       void _id;
       setCustomValues(custom_fields ?? {});
@@ -88,8 +95,8 @@ export function EditMedicineDialog({
           id: b.id,
           batch_no: str(b.batch_no),
           qty_in_stock: str(b.qty_in_stock),
-          expiry_date: str(b.expiry_date),
-          mfg_date: str(b.mfg_date),
+          expiry_date: formatMonthYear(b.expiry_date),
+          mfg_date: b.mfg_date ? formatMonthYear(b.mfg_date) : "",
           mrp: str(b.mrp),
           purchase_rate: str(b.purchase_rate),
           sale_rate: str(b.sale_rate),
@@ -112,7 +119,7 @@ export function EditMedicineDialog({
     if (!medicine) return;
     startTransition(async () => {
       try {
-        await updateMedicine(medicineId, {
+        const result = await updateMedicine(medicineId, {
           name: medicine.name,
           generic_name: medicine.generic_name,
           manufacturer: medicine.manufacturer,
@@ -128,6 +135,10 @@ export function EditMedicineDialog({
           barcode: medicine.barcode,
           custom_fields: customValues,
         });
+        if (!result.ok) {
+          toast.error(result.error);
+          return;
+        }
         toast.success("Medicine updated");
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Update failed");
@@ -138,7 +149,7 @@ export function EditMedicineDialog({
   function saveBatch(batch: BatchForm) {
     startTransition(async () => {
       try {
-        await updateBatch(batch.id, {
+        const result = await updateBatch(batch.id, {
           batch_no: batch.batch_no,
           mfg_date: batch.mfg_date || null,
           expiry_date: batch.expiry_date,
@@ -147,6 +158,10 @@ export function EditMedicineDialog({
           sale_rate: Number(batch.sale_rate),
           qty_in_stock: Number(batch.qty_in_stock),
         });
+        if (!result.ok) {
+          toast.error(result.error);
+          return;
+        }
         toast.success(`Batch ${batch.batch_no} updated`);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Update failed");
@@ -158,7 +173,11 @@ export function EditMedicineDialog({
     if (!window.confirm(`Remove batch ${batch.batch_no}? Its remaining stock will be taken off the shelf.`)) return;
     startTransition(async () => {
       try {
-        await deleteBatches([batch.id]);
+        const result = await deleteBatches([batch.id]);
+        if (!result.ok) {
+          toast.error(result.error);
+          return;
+        }
         setBatches((list) => list.filter((b) => b.id !== batch.id));
         toast.success(`Batch ${batch.batch_no} removed`);
       } catch (err) {
@@ -242,12 +261,20 @@ export function EditMedicineDialog({
                           <Label htmlFor={`${b.id}-${f.key}`} className="text-xs">
                             {f.label}
                           </Label>
-                          <Input
-                            id={`${b.id}-${f.key}`}
-                            type={f.type ?? "text"}
-                            value={b[f.key]}
-                            onChange={(e) => setBatchField(b.id, f.key, e.target.value)}
-                          />
+                          {f.type === "month" ? (
+                            <MonthYearInput
+                              id={`${b.id}-${f.key}`}
+                              value={b[f.key]}
+                              onChange={(v) => setBatchField(b.id, f.key, v)}
+                            />
+                          ) : (
+                            <Input
+                              id={`${b.id}-${f.key}`}
+                              type={f.type ?? "text"}
+                              value={b[f.key]}
+                              onChange={(e) => setBatchField(b.id, f.key, e.target.value)}
+                            />
+                          )}
                         </div>
                       ))}
                     </div>

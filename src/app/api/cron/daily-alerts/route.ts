@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
+import { formatMonthYear } from "@/lib/dates";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWhatsAppMessage, isWhatsAppServiceReachable } from "@/lib/whatsapp";
 
@@ -86,7 +87,7 @@ export async function GET(request: Request) {
           medicine_id: row.medicine_id,
           invoice_id: null,
           title: `Expiring soon: ${row.name}`,
-          message: `Nearest batch expires ${row.nearest_expiry} (${row.total_qty ?? 0} in stock).`,
+          message: `Nearest batch expires ${formatMonthYear(row.nearest_expiry)} (${row.total_qty ?? 0} in stock).`,
         });
       }
     }

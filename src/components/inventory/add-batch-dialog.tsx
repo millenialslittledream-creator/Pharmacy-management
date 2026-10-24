@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { MonthYearInput } from "@/components/ui/month-year-input";
 import { MedicineCombobox, type MedicineOption } from "@/components/inventory/medicine-combobox";
 import { BarcodeScannerDialog } from "@/components/inventory/barcode-scanner";
 import { createBatch, findMedicineByBarcode } from "@/lib/actions/inventory";
@@ -60,7 +61,7 @@ export function AddBatchDialog({ preselected }: { preselected?: MedicineOption }
     }
     startTransition(async () => {
       try {
-        await createBatch({
+        const result = await createBatch({
           medicine_id: medicine.id,
           batch_no: form.batch_no,
           mfg_date: form.mfg_date || undefined,
@@ -70,6 +71,10 @@ export function AddBatchDialog({ preselected }: { preselected?: MedicineOption }
           sale_rate: Number(form.sale_rate),
           qty_in_stock: Number(form.qty_in_stock),
         });
+        if (!result.ok) {
+          toast.error(result.error);
+          return;
+        }
         toast.success("Batch added to stock");
         setForm(EMPTY);
         setMedicine(null);
@@ -112,12 +117,12 @@ export function AddBatchDialog({ preselected }: { preselected?: MedicineOption }
                 <Input id="qty_in_stock" type="number" value={form.qty_in_stock} onChange={(e) => set("qty_in_stock", e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="mfg_date">Mfg date</Label>
-                <Input id="mfg_date" type="date" value={form.mfg_date} onChange={(e) => set("mfg_date", e.target.value)} />
+                <Label htmlFor="mfg_date">Mfg (MM-YYYY)</Label>
+                <MonthYearInput id="mfg_date" value={form.mfg_date} onChange={(v) => set("mfg_date", v)} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="expiry_date">Expiry date *</Label>
-                <Input id="expiry_date" type="date" value={form.expiry_date} onChange={(e) => set("expiry_date", e.target.value)} />
+                <Label htmlFor="expiry_date">Expiry (MM-YYYY) *</Label>
+                <MonthYearInput id="expiry_date" value={form.expiry_date} onChange={(v) => set("expiry_date", v)} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="mrp">MRP</Label>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { formatMonthYear } from "@/lib/dates";
 import { getInvoiceDetail } from "@/lib/actions/billing";
 import { requireOrgId } from "@/lib/actions/require-org";
 import { Badge } from "@/components/ui/badge";
@@ -128,7 +129,7 @@ export default async function InvoiceDetailPage({
                     <td className="py-2 text-xs text-muted-foreground">
                       {batch?.medicines?.hsn_code ?? "—"}
                     </td>
-                    <td className="py-2 text-xs text-muted-foreground">{batch?.expiry_date ?? "—"}</td>
+                    <td className="py-2 text-xs text-muted-foreground">{formatMonthYear(batch?.expiry_date)}</td>
                     <td className="py-2 text-right">{item.qty}</td>
                     <td className="py-2 text-right">{item.unit_rate.toFixed(2)}</td>
                     <td className="py-2 text-right">{item.discount_pct}</td>

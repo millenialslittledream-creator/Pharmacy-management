@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatMonthYear } from "@/lib/dates";
 import { MedicineCombobox, type MedicineOption } from "@/components/inventory/medicine-combobox";
 import {
   ChargesEditor,
@@ -172,7 +173,7 @@ export function EditInvoiceForm({
               <SelectContent>
                 {batches.map((b) => (
                   <SelectItem key={b.id} value={b.id}>
-                    {b.batch_no} · exp {b.expiry_date} · {b.qty_in_stock} left
+                    {b.batch_no} · exp {formatMonthYear(b.expiry_date)} · {b.qty_in_stock} left
                   </SelectItem>
                 ))}
               </SelectContent>

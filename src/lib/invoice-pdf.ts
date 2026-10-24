@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import { formatMonthYear } from "@/lib/dates";
 
 type InvoiceItem = {
   qty: number;
@@ -126,7 +127,7 @@ export async function generateInvoicePdf(
   items.forEach((item, index) => {
     const name = item.medicine_batches?.medicines?.name ?? "—";
     const hsn = item.medicine_batches?.medicines?.hsn_code ?? "—";
-    const expiry = item.medicine_batches?.expiry_date ?? "—";
+    const expiry = formatMonthYear(item.medicine_batches?.expiry_date);
     doc.fillColor(GRAY).font("Helvetica").fontSize(8.5);
     doc.text(String(index + 1), col.sno, y, { width: colW.sno });
     doc.fillColor("#111");

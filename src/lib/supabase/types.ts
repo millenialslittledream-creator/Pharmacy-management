@@ -811,6 +811,7 @@ export type Database = {
           avg_purchase_rate: number | null
           barcode: string | null
           batch_count: number | null
+          batch_numbers: string | null
           category: string | null
           custom_fields: Json | null
           default_sale_rate: number | null

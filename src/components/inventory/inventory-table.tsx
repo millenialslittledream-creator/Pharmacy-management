@@ -28,6 +28,7 @@ import { PaginationControls } from "@/components/ui/pagination-controls";
 import { deleteMedicines } from "@/lib/actions/inventory";
 import { useColumnPrefs } from "@/lib/use-column-prefs";
 import type { TemplateField } from "@/lib/stock-template";
+import { formatMonthYear } from "@/lib/dates";
 import type { Tables } from "@/lib/supabase/types";
 
 export type StockRow = Tables<"medicine_stock_summary">;
@@ -76,6 +77,7 @@ const COLUMNS: ColumnDef[] = [
   { id: "hsn", label: "HSN code", cell: (r) => text(r.hsn_code) },
   { id: "tax", label: "GST %", align: "right", cell: (r) => (r.tax_rate != null ? `${r.tax_rate}%` : "—") },
   { id: "barcode", label: "Barcode", cell: (r) => text(r.barcode) },
+  { id: "batchno", label: "Batch No", cell: (r) => text(r.batch_numbers) },
   {
     id: "stock",
     label: "Stock",
@@ -100,7 +102,7 @@ const COLUMNS: ColumnDef[] = [
     label: "Nearest expiry",
     cell: (r) => (
       <>
-        {r.nearest_expiry ?? "—"} {expiryBadge(r.nearest_expiry)}
+        {formatMonthYear(r.nearest_expiry)} {expiryBadge(r.nearest_expiry)}
       </>
     ),
   },
@@ -124,6 +126,7 @@ const DEFAULT_COLUMNS = [
   "name",
   "generic",
   "manufacturer",
+  "batchno",
   "stock",
   "expiry",
   "reorder",
@@ -200,6 +203,10 @@ export function InventoryTable({
     startTransition(async () => {
       try {
         const result = await deleteMedicines(ids);
+        if (!result.ok) {
+          toast.error(result.error);
+          return;
+        }
         const parts = [];
         if (result.deleted) parts.push(`${result.deleted} deleted`);
         if (result.archived) parts.push(`${result.archived} removed from stock (kept in past invoices)`);

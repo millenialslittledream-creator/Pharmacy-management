@@ -24,6 +24,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MedicineCombobox, type MedicineOption } from "@/components/inventory/medicine-combobox";
 import { CustomerCombobox, type CustomerOption } from "@/components/billing/customer-combobox";
+import { formatMonthYear } from "@/lib/dates";
 import { QuickAddPanel, type QuickPick } from "@/components/billing/quick-add-panel";
 import {
   ChargesEditor,
@@ -248,7 +249,7 @@ export function PosForm({
                 <SelectContent>
                   {batches.map((b) => (
                     <SelectItem key={b.id} value={b.id}>
-                      {b.batch_no} · exp {b.expiry_date} · {b.qty_in_stock} left
+                      {b.batch_no} · exp {formatMonthYear(b.expiry_date)} · {b.qty_in_stock} left
                     </SelectItem>
                   ))}
                 </SelectContent>

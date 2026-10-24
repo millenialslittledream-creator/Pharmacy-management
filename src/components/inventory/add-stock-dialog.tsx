@@ -17,8 +17,10 @@ import {
 } from "@/components/ui/dialog";
 import { bulkImportRows, type BulkImportRow } from "@/lib/actions/inventory";
 import { isRequiredKey, type TemplateField } from "@/lib/stock-template";
+import { MonthYearInput } from "@/components/ui/month-year-input";
 
 const SCHEDULES = ["", "H", "H1", "X", "Others"];
+const MONTH_YEAR_KEYS = new Set(["expiry_date", "mfg_date"]);
 const NUMERIC_KEYS = new Set(["mrp", "purchase_rate", "sale_rate", "qty", "tax_rate", "reorder_level"]);
 
 // One-by-one stock entry. The fields (and their order) come from the
@@ -56,7 +58,11 @@ export function AddStockDialog({ fields }: { fields: TemplateField[] }) {
 
     startTransition(async () => {
       try {
-        await bulkImportRows([{ ...row, custom } as BulkImportRow]);
+        const result = await bulkImportRows([{ ...row, custom } as BulkImportRow]);
+        if (!result.ok) {
+          toast.error(result.error);
+          return;
+        }
         toast.success(`${values.name?.trim() ?? "Medicine"} added to stock`);
         setValues({});
         setOpen(false);
@@ -84,6 +90,7 @@ export function AddStockDialog({ fields }: { fields: TemplateField[] }) {
             <div key={field.key} className="space-y-1.5">
               <Label htmlFor={`stock-${field.key}`}>
                 {field.label}
+                {MONTH_YEAR_KEYS.has(field.key) && " (MM-YYYY)"}
                 {isRequiredKey(field.key) && " *"}
               </Label>
               {field.key === "schedule_category" ? (
@@ -99,6 +106,12 @@ export function AddStockDialog({ fields }: { fields: TemplateField[] }) {
                     </option>
                   ))}
                 </select>
+              ) : MONTH_YEAR_KEYS.has(field.key) ? (
+                <MonthYearInput
+                  id={`stock-${field.key}`}
+                  value={values[field.key] ?? ""}
+                  onChange={(v) => set(field.key, v)}
+                />
               ) : (
                 <Input
                   id={`stock-${field.key}`}
