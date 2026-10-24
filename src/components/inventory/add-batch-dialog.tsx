@@ -18,6 +18,7 @@ import { MedicineCombobox, type MedicineOption } from "@/components/inventory/me
 import { BarcodeScannerDialog } from "@/components/inventory/barcode-scanner";
 import { createBatch, findMedicineByBarcode } from "@/lib/actions/inventory";
 import { ScanLine } from "lucide-react";
+import { errorMessage } from "@/lib/action-result";
 
 const EMPTY = {
   batch_no: "",
@@ -80,7 +81,7 @@ export function AddBatchDialog({ preselected }: { preselected?: MedicineOption }
         setMedicine(null);
         setOpen(false);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to add batch");
+        toast.error(errorMessage(err, "Failed to add batch"));
       }
     });
   }

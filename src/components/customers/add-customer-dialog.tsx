@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { createCustomer } from "@/lib/actions/customers";
+import { errorMessage, unwrap } from "@/lib/action-result";
 
 const EMPTY = { name: "", phone: "", address: "", age: "", gender: "" };
 
@@ -35,19 +36,19 @@ export function AddCustomerDialog() {
     }
     startTransition(async () => {
       try {
-        await createCustomer({
+        unwrap(await createCustomer({
           name: form.name,
           phone: form.phone || undefined,
           address: form.address || undefined,
           age: form.age ? Number(form.age) : undefined,
           gender: form.gender || undefined,
-        });
+        }));
         toast.success("Customer added");
         setForm(EMPTY);
         setOpen(false);
         router.refresh();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to add customer");
+        toast.error(errorMessage(err, "Failed to add customer"));
       }
     });
   }

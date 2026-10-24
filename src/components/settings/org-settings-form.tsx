@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateOrgSettings } from "@/lib/actions/settings";
+import { errorMessage, unwrap } from "@/lib/action-result";
 
 type OrgSettings = {
   name: string;
@@ -33,7 +34,7 @@ export function OrgSettingsForm({ initial }: { initial: OrgSettings }) {
   function handleSave() {
     startTransition(async () => {
       try {
-        await updateOrgSettings({
+        unwrap(await updateOrgSettings({
           name,
           gstin,
           address,
@@ -42,10 +43,10 @@ export function OrgSettingsForm({ initial }: { initial: OrgSettings }) {
           defaultReorderLevel: Number(defaultReorderLevel) || 0,
           whatsappEnabled,
           whatsappAlertNumber,
-        });
+        }));
         toast.success("Settings saved");
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to save settings");
+        toast.error(errorMessage(err, "Failed to save settings"));
       }
     });
   }

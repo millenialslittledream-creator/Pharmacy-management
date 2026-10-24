@@ -30,6 +30,7 @@ import { useColumnPrefs } from "@/lib/use-column-prefs";
 import type { TemplateField } from "@/lib/stock-template";
 import { formatMonthYear } from "@/lib/dates";
 import type { Tables } from "@/lib/supabase/types";
+import { errorMessage } from "@/lib/action-result";
 
 export type StockRow = Tables<"medicine_stock_summary">;
 
@@ -214,7 +215,7 @@ export function InventoryTable({
         setSelected(new Set());
         setConfirmOpen(false);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Delete failed");
+        toast.error(errorMessage(err, "Delete failed"));
       }
     });
   }

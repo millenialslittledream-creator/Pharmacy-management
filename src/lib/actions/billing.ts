@@ -7,6 +7,7 @@ import { sanitizeSearchTerm } from "@/lib/search";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { generateInvoicePdf } from "@/lib/invoice-pdf";
 import type { Database } from "@/lib/supabase/types";
+import { run } from "@/lib/action-result";
 
 type PaymentMode = Database["public"]["Enums"]["payment_mode"];
 
@@ -39,7 +40,7 @@ export async function searchCustomers(query: string) {
   return data;
 }
 
-export async function createQuickCustomer(name: string, phone?: string) {
+async function createQuickCustomerImpl(name: string, phone?: string) {
   const { supabase, orgId } = await requireOrgId();
 
   if (phone) {
@@ -118,7 +119,7 @@ function generateInvoiceNo(prefix: string) {
   return `${prefix}-${Date.now()}-${rand}`;
 }
 
-export async function submitInvoice(input: {
+async function submitInvoiceImpl(input: {
   customerId?: string;
   paymentMode: PaymentMode;
   discountTotal: number;
@@ -248,7 +249,7 @@ export async function listInvoices(filters: InvoiceFilters, page = 1, pageSize =
   return { data, count: count ?? 0 };
 }
 
-export async function returnInvoice(invoiceId: string) {
+async function returnInvoiceImpl(invoiceId: string) {
   const { supabase, orgId } = await requireOrgId();
   const { error } = await supabase.rpc("return_invoice", { p_invoice_id: invoiceId });
   if (error) throw error;
@@ -257,7 +258,7 @@ export async function returnInvoice(invoiceId: string) {
   updateTag(`dashboard-${orgId}`);
 }
 
-export async function recordPayment(invoiceId: string, amount: number, method: PaymentMode) {
+async function recordPaymentImpl(invoiceId: string, amount: number, method: PaymentMode) {
   const { supabase, orgId } = await requireOrgId();
   const { error } = await supabase.rpc("record_payment", {
     p_invoice_id: invoiceId,
@@ -271,7 +272,7 @@ export async function recordPayment(invoiceId: string, amount: number, method: P
   updateTag(`dashboard-${orgId}`);
 }
 
-export async function editInvoice(
+async function editInvoiceImpl(
   invoiceId: string,
   input: { items: InvoiceLineInput[]; discountTotal: number; charges?: InvoiceChargeInput[] },
 ) {
@@ -297,4 +298,24 @@ export async function editInvoice(
   revalidatePath(`/billing/${invoiceId}`);
   revalidatePath("/inventory");
   updateTag(`dashboard-${orgId}`);
+}
+
+export async function createQuickCustomer(...args: Parameters<typeof createQuickCustomerImpl>) {
+  return run(() => createQuickCustomerImpl(...args));
+}
+
+export async function submitInvoice(...args: Parameters<typeof submitInvoiceImpl>) {
+  return run(() => submitInvoiceImpl(...args));
+}
+
+export async function returnInvoice(...args: Parameters<typeof returnInvoiceImpl>) {
+  return run(() => returnInvoiceImpl(...args));
+}
+
+export async function recordPayment(...args: Parameters<typeof recordPaymentImpl>) {
+  return run(() => recordPaymentImpl(...args));
+}
+
+export async function editInvoice(...args: Parameters<typeof editInvoiceImpl>) {
+  return run(() => editInvoiceImpl(...args));
 }

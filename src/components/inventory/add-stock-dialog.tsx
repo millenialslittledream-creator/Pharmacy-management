@@ -18,6 +18,7 @@ import {
 import { bulkImportRows, type BulkImportRow } from "@/lib/actions/inventory";
 import { isRequiredKey, type TemplateField } from "@/lib/stock-template";
 import { MonthYearInput } from "@/components/ui/month-year-input";
+import { errorMessage } from "@/lib/action-result";
 
 const SCHEDULES = ["", "H", "H1", "X", "Others"];
 const MONTH_YEAR_KEYS = new Set(["expiry_date", "mfg_date"]);
@@ -68,7 +69,7 @@ export function AddStockDialog({ fields }: { fields: TemplateField[] }) {
         setOpen(false);
         router.refresh();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Could not add stock");
+        toast.error(errorMessage(err, "Could not add stock"));
       }
     });
   }

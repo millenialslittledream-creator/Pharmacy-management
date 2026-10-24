@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireOrgId } from "@/lib/actions/require-org";
 import type { Database } from "@/lib/supabase/types";
+import { run } from "@/lib/action-result";
 
 type PaymentMode = Database["public"]["Enums"]["payment_mode"];
 
@@ -17,7 +18,7 @@ export async function listPayments(customerId: string) {
   return data;
 }
 
-export async function recordPayment(input: {
+async function recordPaymentImpl(input: {
   customerId: string;
   amount: number;
   method: PaymentMode;
@@ -42,4 +43,8 @@ export async function recordPayment(input: {
 
   revalidatePath(`/customers/${input.customerId}`);
   revalidatePath("/billing");
+}
+
+export async function recordPayment(...args: Parameters<typeof recordPaymentImpl>) {
+  return run(() => recordPaymentImpl(...args));
 }

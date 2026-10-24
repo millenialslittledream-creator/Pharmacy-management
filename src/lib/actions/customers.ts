@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireOrgId } from "@/lib/actions/require-org";
 import { sanitizeSearchTerm } from "@/lib/search";
+import { run } from "@/lib/action-result";
 
 export async function listCustomers(query?: string, page = 1, pageSize = 20) {
   const { supabase } = await requireOrgId();
@@ -45,7 +46,7 @@ function pickCustomerFields(input: Partial<CreateCustomerInput>) {
   return fields;
 }
 
-export async function createCustomer(input: CreateCustomerInput) {
+async function createCustomerImpl(input: CreateCustomerInput) {
   const { supabase, orgId } = await requireOrgId();
   const { data, error } = await supabase
     .from("customers")
@@ -58,7 +59,7 @@ export async function createCustomer(input: CreateCustomerInput) {
   return data;
 }
 
-export async function updateCustomer(id: string, input: Partial<CreateCustomerInput>) {
+async function updateCustomerImpl(id: string, input: Partial<CreateCustomerInput>) {
   const { supabase } = await requireOrgId();
   const { error } = await supabase
     .from("customers")
@@ -93,4 +94,12 @@ export async function getCustomerDetail(id: string) {
   if (paymentsError) throw paymentsError;
 
   return { customer, invoices, payments };
+}
+
+export async function createCustomer(...args: Parameters<typeof createCustomerImpl>) {
+  return run(() => createCustomerImpl(...args));
+}
+
+export async function updateCustomer(...args: Parameters<typeof updateCustomerImpl>) {
+  return run(() => updateCustomerImpl(...args));
 }

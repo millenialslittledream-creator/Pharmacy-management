@@ -32,6 +32,7 @@ import {
   type ChargeRow,
 } from "@/components/billing/charges-editor";
 import { editInvoice, listAvailableBatches, type InvoiceLineInput } from "@/lib/actions/billing";
+import { errorMessage, unwrap } from "@/lib/action-result";
 
 type Batch = { id: string; batch_no: string; expiry_date: string; sale_rate: number; qty_in_stock: number };
 
@@ -143,12 +144,12 @@ export function EditInvoiceForm({
 
     startTransition(async () => {
       try {
-        await editInvoice(invoiceId, { items, discountTotal: discount, charges });
+        unwrap(await editInvoice(invoiceId, { items, discountTotal: discount, charges }));
         toast.success("Invoice updated");
         router.push(`/billing/${invoiceId}`);
         router.refresh();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to update invoice");
+        toast.error(errorMessage(err, "Failed to update invoice"));
       }
     });
   }

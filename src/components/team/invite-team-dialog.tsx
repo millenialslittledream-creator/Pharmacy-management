@@ -22,6 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { createInvite } from "@/lib/actions/team";
+import { errorMessage, unwrap } from "@/lib/action-result";
 
 export function InviteTeamDialog() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export function InviteTeamDialog() {
     }
     startTransition(async () => {
       try {
-        const invite = await createInvite(email.trim(), role);
+        const invite = unwrap(await createInvite(email.trim(), role));
         const link = `${window.location.origin}/invite/${invite.token}`;
         await navigator.clipboard.writeText(link);
         toast.success("Invite created — link copied to clipboard");
@@ -45,7 +46,7 @@ export function InviteTeamDialog() {
         setOpen(false);
         router.refresh();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to create invite");
+        toast.error(errorMessage(err, "Failed to create invite"));
       }
     });
   }

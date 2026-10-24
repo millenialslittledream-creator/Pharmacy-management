@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireOrgId } from "@/lib/actions/require-org";
+import { run } from "@/lib/action-result";
 
 const MAX_QUICK_PICKS = 7;
 
@@ -16,7 +17,7 @@ export async function listQuickPicks() {
   return data;
 }
 
-export async function addQuickPick(medicineId: string) {
+async function addQuickPickImpl(medicineId: string) {
   const { supabase, orgId } = await requireOrgId();
 
   const { count } = await supabase
@@ -36,9 +37,17 @@ export async function addQuickPick(medicineId: string) {
   revalidatePath("/billing");
 }
 
-export async function removeQuickPick(id: string) {
+async function removeQuickPickImpl(id: string) {
   const { supabase } = await requireOrgId();
   const { error } = await supabase.from("quick_picks").delete().eq("id", id);
   if (error) throw error;
   revalidatePath("/billing");
+}
+
+export async function addQuickPick(...args: Parameters<typeof addQuickPickImpl>) {
+  return run(() => addQuickPickImpl(...args));
+}
+
+export async function removeQuickPick(...args: Parameters<typeof removeQuickPickImpl>) {
+  return run(() => removeQuickPickImpl(...args));
 }

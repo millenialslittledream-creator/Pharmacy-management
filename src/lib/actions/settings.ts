@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireOrgId } from "@/lib/actions/require-org";
+import { run } from "@/lib/action-result";
 
 export async function getOrgSettings() {
   const { supabase, orgId } = await requireOrgId();
@@ -16,7 +17,7 @@ export async function getOrgSettings() {
   return data;
 }
 
-export async function updateOrgSettings(input: {
+async function updateOrgSettingsImpl(input: {
   name: string;
   gstin?: string;
   address?: string;
@@ -42,4 +43,8 @@ export async function updateOrgSettings(input: {
     .eq("id", orgId);
   if (error) throw error;
   revalidatePath("/settings");
+}
+
+export async function updateOrgSettings(...args: Parameters<typeof updateOrgSettingsImpl>) {
+  return run(() => updateOrgSettingsImpl(...args));
 }

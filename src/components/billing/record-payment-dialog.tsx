@@ -22,6 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { recordPayment } from "@/lib/actions/billing";
+import { errorMessage, unwrap } from "@/lib/action-result";
 
 type Method = "cash" | "card" | "upi";
 
@@ -50,12 +51,12 @@ export function RecordPaymentDialog({
     }
     startTransition(async () => {
       try {
-        await recordPayment(invoiceId, value, method);
+        unwrap(await recordPayment(invoiceId, value, method));
         toast.success(`₹${value.toFixed(2)} recorded`);
         setOpen(false);
         router.refresh();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to record payment");
+        toast.error(errorMessage(err, "Failed to record payment"));
       }
     });
   }

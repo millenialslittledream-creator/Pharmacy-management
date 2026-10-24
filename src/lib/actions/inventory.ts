@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireOrgId } from "@/lib/actions/require-org";
 import { sanitizeSearchTerm } from "@/lib/search";
 import { parseMonthYear } from "@/lib/dates";
+import { friendlyError } from "@/lib/action-result";
 import {
   resolveTemplate,
   type TemplateField,
@@ -15,7 +16,7 @@ import type { Json } from "@/lib/supabase/types";
 export type ActionResult<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
 function fail(err: unknown): { ok: false; error: string } {
-  return { ok: false, error: err instanceof Error ? err.message : "Something went wrong" };
+  return { ok: false, error: friendlyError(err) };
 }
 
 export async function searchMedicines(query: string) {
@@ -125,7 +126,7 @@ export async function createBatch(input: CreateBatchInput): Promise<ActionResult
       })
       .select("id")
       .single();
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: friendlyError(error) };
 
     await supabase.from("stock_movements").insert({
       org_id: orgId,
@@ -185,7 +186,7 @@ export async function saveStockTemplate(fields: TemplateField[]): Promise<Action
       .from("organizations")
       .update({ stock_template: resolved as unknown as Json })
       .eq("id", orgId);
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: friendlyError(error) };
     revalidatePath("/inventory");
     revalidatePath("/inventory/import");
     return { ok: true, fields: resolved };
@@ -241,15 +242,19 @@ export type BulkImportResult =
 // Returns the error instead of throwing: in production Next hides thrown
 // server-action messages, which left users with a meaningless generic error.
 export async function bulkImportRows(rows: BulkImportRow[]): Promise<BulkImportResult> {
+  // Which row we were on, so a database error can say where it happened.
+  const progress = { row: 0, name: "" };
   try {
-    return { ok: true, ...(await runBulkImport(rows)) };
+    return { ok: true, ...(await runBulkImport(rows, progress)) };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Import failed";
-    return { ok: false, error: message };
+    const base = friendlyError(err);
+    if (!progress.row) return { ok: false, error: base };
+    const earlier = progress.row > 1 ? ` The ${progress.row - 1} row(s) before it were already imported.` : "";
+    return { ok: false, error: `Row ${progress.row} (${progress.name}): ${base}${earlier}` };
   }
 }
 
-async function runBulkImport(rows: BulkImportRow[]) {
+async function runBulkImport(rows: BulkImportRow[], progress: { row: number; name: string }) {
   const { supabase, orgId } = await requireOrgId();
   if (!Array.isArray(rows) || rows.length === 0) throw new Error("Nothing to import");
   if (rows.length > 2000) throw new Error("Import at most 2000 rows at a time");
@@ -271,7 +276,9 @@ async function runBulkImport(rows: BulkImportRow[]) {
   let matched = 0;
   let batchesCreated = 0;
 
-  for (const row of rows) {
+  for (const [rowIndex, row] of rows.entries()) {
+    progress.row = rowIndex + 1;
+    progress.name = row.name;
     const key = medicineKey(row.name, row.generic_name);
     let medicineId = existingMap.get(key);
 
@@ -408,7 +415,7 @@ export async function getMedicineForEdit(
   try {
     const { supabase } = await requireCeo();
     const { data, error } = await supabase.rpc("get_medicine_for_edit", { p_id: id });
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: friendlyError(error) };
     const parsed = data as unknown as { medicine: EditableMedicine; batches: EditableBatch[] };
     return { ok: true, ...parsed };
   } catch (err) {
@@ -453,7 +460,7 @@ export async function updateMedicine(id: string, input: UpdateMedicineInput): Pr
         custom_fields: cleanCustomFields(input.custom_fields),
       })
       .eq("id", id);
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: friendlyError(error) };
     revalidatePath("/inventory");
     return { ok: true };
   } catch (err) {
@@ -489,7 +496,7 @@ export async function updateBatch(id: string, input: Omit<EditableBatch, "id">):
       p_qty: input.qty_in_stock,
       p_supplier_id: null as unknown as string,
     });
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: friendlyError(error) };
     revalidatePath("/inventory");
     return { ok: true };
   } catch (err) {
@@ -501,7 +508,7 @@ export async function deleteMedicines(ids: string[]): Promise<ActionResult<{ del
   try {
     const { supabase } = await requireCeo();
     const { data, error } = await supabase.rpc("delete_medicines", { p_ids: ids });
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: friendlyError(error) };
     revalidatePath("/inventory");
     return { ok: true, ...(data as unknown as { deleted: number; archived: number }) };
   } catch (err) {
@@ -513,7 +520,7 @@ export async function deleteBatches(ids: string[]): Promise<ActionResult<{ delet
   try {
     const { supabase } = await requireCeo();
     const { data, error } = await supabase.rpc("delete_batches", { p_ids: ids });
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: friendlyError(error) };
     revalidatePath("/inventory");
     return { ok: true, ...(data as unknown as { deleted: number; zeroed: number }) };
   } catch (err) {

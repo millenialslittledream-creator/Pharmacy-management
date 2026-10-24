@@ -18,6 +18,7 @@ import {
 import { bulkImportRows, type BulkImportRow } from "@/lib/actions/inventory";
 import { REQUIRED_KEYS, matchHeader, sampleCsv, type TemplateField } from "@/lib/stock-template";
 import { formatMonthYear, normalizeDate, parseMonthYear } from "@/lib/dates";
+import { errorMessage } from "@/lib/action-result";
 
 function downloadTemplate(fields: TemplateField[]) {
   const blob = new Blob([sampleCsv(fields)], { type: "text/csv;charset=utf-8;" });
@@ -124,7 +125,7 @@ export function BulkImport({ fields }: { fields: TemplateField[] }) {
         setRows([]);
         router.push("/inventory");
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Import failed");
+        toast.error(errorMessage(err, "Import failed"));
       }
     });
   }

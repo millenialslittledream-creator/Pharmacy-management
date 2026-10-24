@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { revokeInvite } from "@/lib/actions/team";
 import type { listPendingInvites } from "@/lib/actions/team";
+import { errorMessage, unwrap } from "@/lib/action-result";
 
 type Invite = Awaited<ReturnType<typeof listPendingInvites>>[number];
 
@@ -30,9 +31,13 @@ export function PendingInvites({ invites }: { invites: Invite[] }) {
 
   function handleRevoke(id: string) {
     startTransition(async () => {
-      await revokeInvite(id);
-      toast.success("Invite revoked");
-      router.refresh();
+      try {
+        unwrap(await revokeInvite(id));
+        toast.success("Invite revoked");
+        router.refresh();
+      } catch (err) {
+        toast.error(errorMessage(err, "Couldn't revoke the invite"));
+      }
     });
   }
 

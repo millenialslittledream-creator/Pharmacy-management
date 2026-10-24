@@ -25,6 +25,7 @@ import {
 import type { TemplateField } from "@/lib/stock-template";
 import { MonthYearInput } from "@/components/ui/month-year-input";
 import { formatMonthYear } from "@/lib/dates";
+import { errorMessage } from "@/lib/action-result";
 
 type MedicineForm = Record<keyof Omit<EditableMedicine, "id" | "custom_fields">, string>;
 type BatchForm = Record<keyof Omit<EditableBatch, "id">, string> & { id: string };
@@ -103,7 +104,7 @@ export function EditMedicineDialog({
         })),
       );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not load this medicine");
+      toast.error(errorMessage(err, "Could not load this medicine"));
       setOpen(false);
     } finally {
       setLoading(false);
@@ -141,7 +142,7 @@ export function EditMedicineDialog({
         }
         toast.success("Medicine updated");
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Update failed");
+        toast.error(errorMessage(err, "Update failed"));
       }
     });
   }
@@ -164,7 +165,7 @@ export function EditMedicineDialog({
         }
         toast.success(`Batch ${batch.batch_no} updated`);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Update failed");
+        toast.error(errorMessage(err, "Update failed"));
       }
     });
   }
@@ -181,7 +182,7 @@ export function EditMedicineDialog({
         setBatches((list) => list.filter((b) => b.id !== batch.id));
         toast.success(`Batch ${batch.batch_no} removed`);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Delete failed");
+        toast.error(errorMessage(err, "Delete failed"));
       }
     });
   }

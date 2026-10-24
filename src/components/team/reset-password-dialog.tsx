@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { resetTeammatePassword } from "@/lib/actions/team";
+import { errorMessage, unwrap } from "@/lib/action-result";
 
 function generatePassword() {
   const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -33,12 +34,12 @@ export function ResetPasswordDialog({ profileId, name }: { profileId: string; na
     }
     startTransition(async () => {
       try {
-        await resetTeammatePassword(profileId, password);
+        unwrap(await resetTeammatePassword(profileId, password));
         toast.success(`${name}'s password changed — share the new one with them`);
         setPassword("");
         setOpen(false);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to change password");
+        toast.error(errorMessage(err, "Failed to change password"));
       }
     });
   }

@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { searchCustomers, createQuickCustomer } from "@/lib/actions/billing";
+import { toast } from "sonner";
+import { errorMessage, unwrap } from "@/lib/action-result";
 
 export type CustomerOption = { id: string; name: string; phone: string | null };
 
@@ -48,9 +50,13 @@ export function CustomerCombobox({
   function handleCreate() {
     if (!query.trim()) return;
     startTransition(async () => {
-      const customer = await createQuickCustomer(query.trim(), newPhone || undefined);
-      onSelect(customer);
-      setOpen(false);
+      try {
+        const customer = unwrap(await createQuickCustomer(query.trim(), newPhone || undefined));
+        onSelect(customer);
+        setOpen(false);
+      } catch (err) {
+        toast.error(errorMessage(err, "Couldn't add the customer"));
+      }
     });
   }
 

@@ -25,6 +25,7 @@ import {
 import { listInvoices, returnInvoice, type InvoiceFilters } from "@/lib/actions/billing";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import type { Database } from "@/lib/supabase/types";
+import { errorMessage, unwrap } from "@/lib/action-result";
 
 const PAGE_SIZE = 20;
 
@@ -96,11 +97,11 @@ export function InvoiceList({
   function handleReturn(id: string) {
     startTransition(async () => {
       try {
-        await returnInvoice(id);
+        unwrap(await returnInvoice(id));
         toast.success("Invoice returned and stock restored");
         refetch(filters, page);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Return failed");
+        toast.error(errorMessage(err, "Return failed"));
       }
     });
   }

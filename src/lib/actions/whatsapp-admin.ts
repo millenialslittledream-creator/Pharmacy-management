@@ -1,6 +1,7 @@
 "use server";
 
 import { requireOrgId } from "@/lib/actions/require-org";
+import { run } from "@/lib/action-result";
 
 async function callWhatsAppService(path: string, options?: { method?: "GET" | "POST" }) {
   const { role, orgId } = await requireOrgId();
@@ -55,6 +56,10 @@ export async function getWhatsAppLogs() {
   }
 }
 
-export async function disconnectWhatsApp() {
+async function disconnectWhatsAppImpl() {
   await callWhatsAppService("/logout", { method: "POST" });
+}
+
+export async function disconnectWhatsApp(...args: Parameters<typeof disconnectWhatsAppImpl>) {
+  return run(() => disconnectWhatsAppImpl(...args));
 }

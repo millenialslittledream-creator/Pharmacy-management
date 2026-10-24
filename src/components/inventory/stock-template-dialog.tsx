@@ -25,6 +25,7 @@ import {
   type FieldType,
   type TemplateField,
 } from "@/lib/stock-template";
+import { errorMessage } from "@/lib/action-result";
 
 // CEO-only: choose which fields the stock entry form and the CSV template
 // contain, and in what order. Saving updates both immediately.
@@ -81,7 +82,7 @@ export function StockTemplateDialog({ fields }: { fields: TemplateField[] }) {
         toast.success("Template saved — the add form and CSV template now use it");
         setOpen(false);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Could not save the template");
+        toast.error(errorMessage(err, "Could not save the template"));
       }
     });
   }

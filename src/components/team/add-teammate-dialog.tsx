@@ -22,6 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { createTeammateDirect } from "@/lib/actions/team";
+import { errorMessage, unwrap } from "@/lib/action-result";
 
 export function AddTeammateDialog() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export function AddTeammateDialog() {
     }
     startTransition(async () => {
       try {
-        await createTeammateDirect({ fullName: fullName.trim(), email: email.trim(), password, role });
+        unwrap(await createTeammateDirect({ fullName: fullName.trim(), email: email.trim(), password, role }));
         toast.success(`${fullName.trim()} added — share their email and password with them directly`);
         setFullName("");
         setEmail("");
@@ -47,7 +48,7 @@ export function AddTeammateDialog() {
         setOpen(false);
         router.refresh();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to add teammate");
+        toast.error(errorMessage(err, "Failed to add teammate"));
       }
     });
   }

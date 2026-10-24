@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireOrgId } from "@/lib/actions/require-org";
 import type { Database } from "@/lib/supabase/types";
+import { run } from "@/lib/action-result";
 
 type Role = Database["public"]["Enums"]["user_role"];
 
@@ -41,7 +42,7 @@ export async function listTeamMembers() {
 
 // Passwords are stored as one-way hashes, so they can't be viewed — the CEO
 // sets a new one and shares it with the teammate.
-export async function resetTeammatePassword(profileId: string, newPassword: string) {
+async function resetTeammatePasswordImpl(profileId: string, newPassword: string) {
   const { orgId, role } = await requireOrgId();
   if (role !== "ceo") throw new Error("Only the CEO can reset teammate passwords");
   if (newPassword.length < 8) throw new Error("Password must be at least 8 characters");
@@ -70,7 +71,7 @@ export async function listPendingInvites() {
   return data;
 }
 
-export async function createInvite(email: string, role: Role) {
+async function createInviteImpl(email: string, role: Role) {
   const { supabase } = await requireOrgId();
   const { data, error } = await supabase.rpc("create_invite", { p_email: email, p_role: role });
   if (error) throw error;
@@ -78,7 +79,7 @@ export async function createInvite(email: string, role: Role) {
   return data[0];
 }
 
-export async function revokeInvite(id: string) {
+async function revokeInviteImpl(id: string) {
   const { supabase } = await requireOrgId();
   const { error } = await supabase.from("invites").delete().eq("id", id);
   if (error) throw error;
@@ -91,7 +92,7 @@ export async function revokeInvite(id: string) {
 // no email sent. CEO sets the password themselves and shares it with the
 // teammate out of band; the teammate can change it later from their own
 // account settings once that exists.
-export async function createTeammateDirect(input: {
+async function createTeammateDirectImpl(input: {
   email: string;
   password: string;
   fullName: string;
@@ -132,4 +133,20 @@ export async function getInviteByToken(token: string) {
   const { data, error } = await supabase.rpc("get_invite_by_token", { p_token: token });
   if (error) throw error;
   return data[0] ?? null;
+}
+
+export async function resetTeammatePassword(...args: Parameters<typeof resetTeammatePasswordImpl>) {
+  return run(() => resetTeammatePasswordImpl(...args));
+}
+
+export async function createInvite(...args: Parameters<typeof createInviteImpl>) {
+  return run(() => createInviteImpl(...args));
+}
+
+export async function revokeInvite(...args: Parameters<typeof revokeInviteImpl>) {
+  return run(() => revokeInviteImpl(...args));
+}
+
+export async function createTeammateDirect(...args: Parameters<typeof createTeammateDirectImpl>) {
+  return run(() => createTeammateDirectImpl(...args));
 }

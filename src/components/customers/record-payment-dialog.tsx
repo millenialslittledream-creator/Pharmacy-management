@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { recordPayment } from "@/lib/actions/payments";
 import type { Database } from "@/lib/supabase/types";
+import { errorMessage, unwrap } from "@/lib/action-result";
 
 type PaymentMode = Database["public"]["Enums"]["payment_mode"];
 
@@ -39,12 +40,12 @@ export function RecordPaymentDialog({ customerId }: { customerId: string }) {
     }
     startTransition(async () => {
       try {
-        await recordPayment({ customerId, amount: value, method });
+        unwrap(await recordPayment({ customerId, amount: value, method }));
         toast.success("Payment recorded");
         setAmount("");
         setOpen(false);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to record payment");
+        toast.error(errorMessage(err, "Failed to record payment"));
       }
     });
   }

@@ -40,6 +40,7 @@ import {
 } from "@/lib/actions/billing";
 import type { Database } from "@/lib/supabase/types";
 import { X } from "lucide-react";
+import { errorMessage, unwrap } from "@/lib/action-result";
 
 type PaymentMode = Database["public"]["Enums"]["payment_mode"];
 type Batch = { id: string; batch_no: string; expiry_date: string; sale_rate: number; qty_in_stock: number };
@@ -201,11 +202,11 @@ export function PosForm({
       try {
         let customerId = customer?.id;
         if (!customerId && leadName.trim()) {
-          const lead = await createQuickCustomer(leadName.trim(), leadPhone.trim() || undefined);
+          const lead = unwrap(await createQuickCustomer(leadName.trim(), leadPhone.trim() || undefined));
           customerId = lead.id;
         }
 
-        const invoiceId = await submitInvoice({
+        const invoiceId = unwrap(await submitInvoice({
           customerId,
           paymentMode,
           discountTotal: isFree ? 0 : discount,
@@ -214,11 +215,11 @@ export function PosForm({
           isFree,
           amountPaid: isFree ? undefined : amountPaid,
           paymentDueAt: !isFree && pendingAmount > 0 && paymentDueAt ? new Date(paymentDueAt).toISOString() : undefined,
-        });
+        }));
         toast.success(isFree ? "Free invoice created" : "Invoice created");
         router.push(`/billing/${invoiceId}`);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to create invoice");
+        toast.error(errorMessage(err, "Failed to create invoice"));
       }
     });
   }

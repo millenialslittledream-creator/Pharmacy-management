@@ -12,6 +12,7 @@ import {
   getWhatsAppLogs,
   disconnectWhatsApp,
 } from "@/lib/actions/whatsapp-admin";
+import { errorMessage, unwrap } from "@/lib/action-result";
 
 type Status = { status: "connected" | "disconnected"; qrAvailable: boolean } | null;
 type LogEntry = { time: string; message: string; extra?: unknown };
@@ -45,14 +46,14 @@ export function WhatsAppStatusPanel() {
   function disconnect() {
     startTransition(async () => {
       try {
-        await disconnectWhatsApp();
+        unwrap(await disconnectWhatsApp());
         toast.success("WhatsApp disconnected — scan a new QR to relink");
         const data = await fetchWhatsAppData();
         setStatus(data.status);
         setLogs(data.logs);
         setQrDataUrl(data.qrDataUrl);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to disconnect");
+        toast.error(errorMessage(err, "Failed to disconnect"));
       }
     });
   }

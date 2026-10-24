@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { MedicineCombobox, type MedicineOption } from "@/components/inventory/medicine-combobox";
 import { addQuickPick, removeQuickPick } from "@/lib/actions/quick-picks";
+import { errorMessage, unwrap } from "@/lib/action-result";
 
 export type QuickPick = {
   id: string;
@@ -51,7 +52,7 @@ export function QuickAddPanel({
     }
     startTransition(async () => {
       try {
-        await addQuickPick(draft.id);
+        unwrap(await addQuickPick(draft.id));
         setPicks((p) => [
           ...p,
           {
@@ -69,7 +70,7 @@ export function QuickAddPanel({
         setDraft(null);
         toast.success(`${draft.name} added to quick-add`);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to add");
+        toast.error(errorMessage(err, "Failed to add"));
       }
     });
   }
@@ -77,10 +78,10 @@ export function QuickAddPanel({
   function handleRemove(id: string) {
     startTransition(async () => {
       try {
-        await removeQuickPick(id);
+        unwrap(await removeQuickPick(id));
         setPicks((p) => p.filter((pick) => pick.id !== id));
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to remove");
+        toast.error(errorMessage(err, "Failed to remove"));
       }
     });
   }
